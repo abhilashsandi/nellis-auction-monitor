@@ -1,6 +1,10 @@
 name: Nellis Auction Monitor
 
 on:
+  push:
+    branches:
+      - master
+      - main
   schedule:
     # Runs every day at 3 PM CDT (20:00 UTC)
     - cron: '0 20 * * *'
