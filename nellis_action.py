@@ -109,6 +109,12 @@ def check_nellis_auction():
                 retail = item.get('retailPrice', 0)
                 current_bid = item.get('currentBid', 0)
                 
+                grade = item.get('grade') or {}
+                condition = grade.get('conditionType', {}).get('description', 'Unknown')
+                functional = grade.get('functionalType', {}).get('description', 'Unknown')
+                damage = grade.get('damageType', {}).get('description', 'Unknown')
+                tags = f"Condition: {condition} | Functional: {functional} | Damage: {damage}"
+                
                 slug = re.sub(r'[^a-zA-Z0-9]+', '-', title).strip('-')
                 item_url = f"https://nellisauction.com/p/{slug}/{item_id}"
                 
@@ -119,7 +125,8 @@ def check_nellis_auction():
                     'city': loc_city,
                     'url': item_url,
                     'retail': retail,
-                    'bid': current_bid
+                    'bid': current_bid,
+                    'tags': tags
                 })
                 print(f"  -> FOUND (Specific): {title} in {loc_city}, TX!")
                 
@@ -142,6 +149,12 @@ def check_nellis_auction():
             retail = item.get('retailPrice', 0)
             current_bid = item.get('currentBid', 0)
             
+            grade = item.get('grade') or {}
+            condition = grade.get('conditionType', {}).get('description', 'Unknown')
+            functional = grade.get('functionalType', {}).get('description', 'Unknown')
+            damage = grade.get('damageType', {}).get('description', 'Unknown')
+            tags = f"Condition: {condition} | Functional: {functional} | Damage: {damage}"
+            
             slug = re.sub(r'[^a-zA-Z0-9]+', '-', title).strip('-')
             item_url = f"https://nellisauction.com/p/{slug}/{item_id}"
             
@@ -152,7 +165,8 @@ def check_nellis_auction():
                 'city': loc_city,
                 'url': item_url,
                 'retail': retail,
-                'bid': current_bid
+                'bid': current_bid,
+                'tags': tags
             })
             
     # Include the first 4 products OR products with retail >= $300
@@ -174,6 +188,7 @@ def check_nellis_auction():
             body_lines.append(f"- {item['title']}")
             body_lines.append(f"  Search Term: {item['term']}")
             body_lines.append(f"  Retail Price: ${item['retail']} | Current Bid: ${item['bid']}")
+            body_lines.append(f"  Details: {item['tags']}")
             body_lines.append(f"  Location: {item['city']}, TX")
             body_lines.append(f"  Link: {item['url']}\n")
             
