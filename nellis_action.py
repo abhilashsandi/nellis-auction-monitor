@@ -97,12 +97,20 @@ def check_nellis_auction():
             loc_state = loc.get('state', '')
             
             if loc_state.upper() == TARGET_STATE:
-                seen_ids.add(item_id)
                 title = item.get('title', 'Unknown Item')
+                
+                # Strict match: Ensure all words in the search term are in the title
+                term_words = term.lower().split()
+                if not all(word in title.lower() for word in term_words):
+                    continue
+                    
+                seen_ids.add(item_id)
                 loc_city = loc.get('city', '')
                 retail = item.get('retailPrice', 0)
                 current_bid = item.get('currentBid', 0)
-                item_url = f"https://nellisauction.com/item/{item_id}"
+                
+                slug = re.sub(r'[^a-zA-Z0-9]+', '-', title).strip('-')
+                item_url = f"https://nellisauction.com/p/{slug}/{item_id}"
                 
                 found_items.append({
                     'category': 'Specific Search',
@@ -133,7 +141,9 @@ def check_nellis_auction():
             loc_city = loc.get('city', '')
             retail = item.get('retailPrice', 0)
             current_bid = item.get('currentBid', 0)
-            item_url = f"https://nellisauction.com/item/{item_id}"
+            
+            slug = re.sub(r'[^a-zA-Z0-9]+', '-', title).strip('-')
+            item_url = f"https://nellisauction.com/p/{slug}/{item_id}"
             
             dallas_baby_items.append({
                 'category': 'Top Baby Item',
