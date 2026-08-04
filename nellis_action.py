@@ -30,13 +30,17 @@ EMAIL_SENDER = os.environ.get("EMAIL_SENDER")
 EMAIL_APP_PASSWORD = os.environ.get("EMAIL_APP_PASSWORD")
 EMAIL_RECEIVER = os.environ.get("EMAIL_RECEIVER")
 
-def send_notification(subject, body):
+def send_notification(subject, plain_body, html_body=None):
     if not EMAIL_SENDER or not EMAIL_APP_PASSWORD:
         print("Email credentials not set. Skipping email notification.")
         return
 
     msg = EmailMessage()
-    msg.set_content(body)
+    msg.set_content(plain_body)
+    
+    if html_body:
+        msg.add_alternative(html_body, subtype='html')
+        
     msg["Subject"] = subject
     msg["From"] = EMAIL_SENDER
     msg["To"] = EMAIL_RECEIVER or EMAIL_SENDER
@@ -126,7 +130,10 @@ def check_nellis_auction():
                     'url': item_url,
                     'retail': retail,
                     'bid': current_bid,
-                    'tags': tags
+                    'tags': tags,
+                    'condition': condition,
+                    'functional': functional,
+                    'damage': damage
                 })
                 print(f"  -> FOUND (Specific): {title} in {loc_city}, TX!")
                 
@@ -166,7 +173,10 @@ def check_nellis_auction():
                 'url': item_url,
                 'retail': retail,
                 'bid': current_bid,
-                'tags': tags
+                'tags': tags,
+                'condition': condition,
+                'functional': functional,
+                'damage': damage
             })
             
     # Include the first 4 products OR products with retail >= $300
@@ -193,9 +203,88 @@ def check_nellis_auction():
             body_lines.append(f"  Link: {item['url']}\n")
             
         body_lines.append("Act fast! Auctions close quickly.")
+        plain_body = "\n".join(body_lines)
         
-        body = "\n".join(body_lines)
-        send_notification(subject, body)
+        html_body = """
+        <html>
+        <head>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
+            .container { max-width: 1000px; margin: 0 auto; background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+            h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 0; }
+            table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+            th, td { border: 1px solid #e0e0e0; padding: 12px 15px; text-align: left; vertical-align: middle; }
+            th { background-color: #f8f9fa; color: #333; font-weight: 600; }
+            tr:nth-child(even) { background-color: #fafafa; }
+            tr:hover { background-color: #f1f5f9; }
+            a { color: #2980b9; text-decoration: none; font-weight: bold; }
+            a:hover { text-decoration: underline; color: #1a5276; }
+            .price { color: #27ae60; font-weight: bold; font-size: 1.1em; }
+            .bid { color: #e74c3c; font-weight: bold; font-size: 1.1em; }
+            .tag-group { display: flex; flex-wrap: wrap; gap: 6px; }
+            .tag { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+            .tag-cond { background-color: #e1f5fe; color: #0277bd; border: 1px solid #b3e5fc; }
+            .tag-func { background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+            .tag-dmg { background-color: #fff3e0; color: #ef6c00; border: 1px solid #ffe0b2; }
+            .tag-dmg-none { background-color: #f3e5f5; color: #6a1b9a; border: 1px solid #e1bee7; }
+            .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #eee; text-align: center; color: #7f8c8d; font-size: 0.9em; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h2>📦 Nellis Auction Alert</h2>
+            <p>The following items matching your criteria were found in <strong>Dallas, TX</strong>:</p>
+            <table>
+              <thead>
+                <tr>
+                  <th width="35%">Item Name</th>
+                  <th width="15%">Price / Bid</th>
+                  <th width="30%">Condition Details</th>
+                  <th width="20%">Location / Link</th>
+                </tr>
+              </thead>
+              <tbody>
+        """
+        
+        for item in found_items:
+            dmg_class = "tag-dmg-none" if str(item['damage']).lower() == "none" else "tag-dmg"
+            html_body += f"""
+                <tr>
+                  <td>
+                    <div style="font-size: 14px; margin-bottom: 5px;">{item['title']}</div>
+                    <div style="font-size: 11px; color: #7f8c8d;">Search Term: {item['term']}</div>
+                  </td>
+                  <td>
+                    <div class="price">Retail: ${item['retail']}</div>
+                    <div class="bid">Bid: ${item['bid']}</div>
+                  </td>
+                  <td>
+                    <div class="tag-group">
+                      <span class="tag tag-cond">Cond: {item['condition']}</span>
+                      <span class="tag tag-func">Func: {item['functional']}</span>
+                      <span class="tag {dmg_class}">Dmg: {item['damage']}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div style="margin-bottom: 8px; font-size: 13px;">{item['city']}, TX</div>
+                    <a href="{item['url']}" target="_blank">View Item &rarr;</a>
+                  </td>
+                </tr>
+            """
+            
+        html_body += """
+              </tbody>
+            </table>
+            <div class="footer">
+              Act fast! Auctions close quickly.<br>
+              <em>Automated Nellis Auction Monitor</em>
+            </div>
+          </div>
+        </body>
+        </html>
+        """
+        
+        send_notification(subject, plain_body, html_body)
         print(f"\nFinished. Found {len(found_items)} items total. Notification sent.")
     else:
         print("\nFinished. No items found in Dallas/TX matching criteria.")
