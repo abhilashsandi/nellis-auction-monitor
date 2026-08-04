@@ -21,13 +21,16 @@ GENERIC_BABY_URL = "https://nellisauction.com/search?query=&Taxonomy%20Level%201
 
 TARGET_STATE = "TX"
 
+# We must send the Dallas location cookie to force the server to return Dallas items 
+# in the first 120 results, otherwise they might get pushed out by Vegas items!
+DALLAS_COOKIE = "__shopping-location=eyJzaG9wcGluZ0xvY2F0aW9uIjp7ImlkIjo4LCJuYW1lIjoiRGFsbGFzLCBUWCIsImxvY2F0aW9uUGhvdG8iOlt7ImlkIjo3MSwibG9jYXRpb25JZCI6bnVsbCwicGhvdG9JZCI6NjgsInNob3BwaW5nTG9jYXRpb25JZCI6OCwidmVyc2lvbiI6ImEiLCJwaG90byI6eyJpZCI6NjgsImZvcm1hdCI6ImpwZyIsIm5hbWUiOiJkYWxsYXNfOTAwIiwicHJvcGVydGllcyI6e30sInVybCI6Imh0dHBzOi8vc3RvcmFnZS5nb29nbGVhcGlzLmNvbS9uYS1sb2NhdGlvbi1pbWFnZXMtcHJkL2RhbGxhc185MDAuanBnIn19XX19.cn2%2FN0ykPtStLGbGabNB83w1yVxnRwddipD7C3n4Ohg"
+
 # Retrieve secrets from GitHub Actions environment variables
 EMAIL_SENDER = os.environ.get("EMAIL_SENDER")
 EMAIL_APP_PASSWORD = os.environ.get("EMAIL_APP_PASSWORD")
 EMAIL_RECEIVER = os.environ.get("EMAIL_RECEIVER")
 
 def send_notification(subject, body):
-    """Sends an email notification when items are found."""
     if not EMAIL_SENDER or not EMAIL_APP_PASSWORD:
         print("Email credentials not set. Skipping email notification.")
         return
@@ -47,59 +50,58 @@ def send_notification(subject, body):
     except Exception as e:
         print(f"Failed to send email notification: {e}")
 
-def find_hits(obj):
-    """Recursively search JSON object for Algolia hits."""
+def find_items(obj):
     items = []
     if isinstance(obj, dict):
-        if 'hits' in obj and isinstance(obj['hits'], list):
-            return obj['hits']
-        for k, v in obj.items():
-            items.extend(find_hits(v))
+        if 'title' in obj and 'location' in obj:
+            items.append(obj)
+        for v in obj.values():
+            items.extend(find_items(v))
     elif isinstance(obj, list):
         for i in obj:
-            items.extend(find_hits(i))
+            items.extend(find_items(i))
     return items
 
 def fetch_and_parse(url):
     try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        req = urllib.request.Request(url, headers={
+            'User-Agent': 'Mozilla/5.0',
+            'Cookie': DALLAS_COOKIE
+        })
         html = urllib.request.urlopen(req, timeout=15).read().decode('utf-8', errors='ignore')
         match = re.search(r'window\.__remixContext\s*=\s*(\{.*?\});</script>', html, re.DOTALL)
         if match:
             data = json.loads(match.group(1))
-            return find_hits(data)
+            return find_items(data)
     except Exception as e:
         print(f"Error fetching {url}: {e}")
     return []
 
 def check_nellis_auction():
-    print("Checking Nellis Auction for target items...")
+    print("Checking Nellis Auction for target items (Dallas Cookie Applied)...")
     
     found_items = []
     seen_ids = set()
     
     # 1. Search for individual items
     for term in SEARCH_TERMS:
-        print(f"Searching for: {term}")
         encoded_term = urllib.parse.quote_plus(term)
         url = f"https://nellisauction.com/search?query={encoded_term}"
         
-        hits = fetch_and_parse(url)
-        for hit in hits:
-            if not isinstance(hit, dict) or 'objectID' not in hit: continue
+        items = fetch_and_parse(url)
+        for item in items:
+            item_id = item.get('id') or item.get('objectID')
+            if not item_id or item_id in seen_ids: continue
             
-            item_id = hit.get('objectID')
-            if item_id in seen_ids: continue
-            
-            loc = hit.get('location', {})
+            loc = item.get('location', {})
             loc_state = loc.get('state', '')
             
             if loc_state.upper() == TARGET_STATE:
                 seen_ids.add(item_id)
-                title = hit.get('title', 'Unknown Item')
+                title = item.get('title', 'Unknown Item')
                 loc_city = loc.get('city', '')
-                retail = hit.get('retailPrice', 0)
-                current_bid = hit.get('currentBid', 0)
+                retail = item.get('retailPrice', 0)
+                current_bid = item.get('currentBid', 0)
                 item_url = f"https://nellisauction.com/item/{item_id}"
                 
                 found_items.append({
@@ -111,28 +113,26 @@ def check_nellis_auction():
                     'retail': retail,
                     'bid': current_bid
                 })
-                print(f"  -> FOUND: {title} in {loc_city}, TX!")
+                print(f"  -> FOUND (Specific): {title} in {loc_city}, TX!")
                 
     # 2. Check the generic Baby category sorted by retail price
     print("\nChecking Generic Baby Category (Highest Retail Price)...")
-    baby_hits = fetch_and_parse(GENERIC_BABY_URL)
+    baby_items = fetch_and_parse(GENERIC_BABY_URL)
     
     dallas_baby_items = []
-    for hit in baby_hits:
-        if not isinstance(hit, dict) or 'objectID' not in hit: continue
+    for item in baby_items:
+        item_id = item.get('id') or item.get('objectID')
+        if not item_id or item_id in seen_ids: continue # don't duplicate if already found
         
-        item_id = hit.get('objectID')
-        if item_id in seen_ids: continue # don't duplicate if already found
-        
-        loc = hit.get('location', {})
+        loc = item.get('location', {})
         loc_state = loc.get('state', '')
         
         if loc_state.upper() == TARGET_STATE:
             seen_ids.add(item_id)
-            title = hit.get('title', 'Unknown Item')
+            title = item.get('title', 'Unknown Item')
             loc_city = loc.get('city', '')
-            retail = hit.get('retailPrice', 0)
-            current_bid = hit.get('currentBid', 0)
+            retail = item.get('retailPrice', 0)
+            current_bid = item.get('currentBid', 0)
             item_url = f"https://nellisauction.com/item/{item_id}"
             
             dallas_baby_items.append({
@@ -150,9 +150,9 @@ def check_nellis_auction():
     for i, item in enumerate(dallas_baby_items):
         if i < 4 or item['retail'] >= 300:
             selected_baby_items.append(item)
+            print(f"  -> FOUND (Baby Cat): {item['title']} - Retail ${item['retail']}")
             
     if selected_baby_items:
-        print(f"Added {len(selected_baby_items)} top/expensive baby items to alert.")
         found_items.extend(selected_baby_items)
 
     # 3. Send Notification
@@ -171,9 +171,9 @@ def check_nellis_auction():
         
         body = "\n".join(body_lines)
         send_notification(subject, body)
-        print(f"Finished. Found {len(found_items)} items total. Notification sent.")
+        print(f"\nFinished. Found {len(found_items)} items total. Notification sent.")
     else:
-        print("Finished. No items found in Dallas/TX matching criteria.")
+        print("\nFinished. No items found in Dallas/TX matching criteria.")
 
 if __name__ == "__main__":
     check_nellis_auction()
