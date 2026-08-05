@@ -14,7 +14,10 @@ SEARCH_TERMS = [
     "Maxi-Cosi Emme 360", "Emme 360", "Britax One4Life", "One4Life ClickTight", 
     "Chicco OneFit LX", "OneFit LX ClearTex", "Chicco", "Gracco", "UPPAbaby Minu V3", 
     "Minu V3", "Joolz Aer2", "Joolz Aer", "Bugaboo Butterfly 2", "Bugaboo Butterfly", 
-    "Ergobaby Metro 3", "Metro 3 Deluxe", "Silver Cross Jet 5", "Silver Cross Jet"
+    "Ergobaby Metro 3", "Metro 3 Deluxe", "Silver Cross Jet 5", "Silver Cross Jet",
+    "hitch mount bike rack", "kuat", "thule", "bike hitch rack", "yakima", "hitch mount cargo", 
+    "giraffe retractable hose", "Evenflo", "Britax", "UPPAbaby", "Joolz", "Bugaboo", 
+    "Ergobaby", "Kids Ride Shotgun", "Child Bike seat"
 ]
 
 GENERIC_BABY_URL = "https://nellisauction.com/search?query=&Taxonomy%20Level%201=Baby&sortBy=retail_price_desc"
@@ -108,13 +111,16 @@ def check_nellis_auction():
                 if not all(word in title.lower() for word in term_words):
                     continue
                     
+                grade = item.get('grade') or {}
+                condition = grade.get('conditionType', {}).get('description', 'Unknown')
+                if str(condition).lower() == 'used':
+                    continue
+
                 seen_ids.add(item_id)
                 loc_city = loc.get('city', '')
                 retail = item.get('retailPrice', 0)
-                current_bid = item.get('currentBid', 0)
+                current_bid = item.get('currentPrice', 0)
                 
-                grade = item.get('grade') or {}
-                condition = grade.get('conditionType', {}).get('description', 'Unknown')
                 functional = grade.get('functionalType', {}).get('description', 'Unknown')
                 damage = grade.get('damageType', {}).get('description', 'Unknown')
                 tags = f"Condition: {condition} | Functional: {functional} | Damage: {damage}"
@@ -150,14 +156,17 @@ def check_nellis_auction():
         loc_state = loc.get('state', '')
         
         if loc_state.upper() == TARGET_STATE:
+            grade = item.get('grade') or {}
+            condition = grade.get('conditionType', {}).get('description', 'Unknown')
+            if str(condition).lower() == 'used':
+                continue
+
             seen_ids.add(item_id)
             title = item.get('title', 'Unknown Item')
             loc_city = loc.get('city', '')
             retail = item.get('retailPrice', 0)
-            current_bid = item.get('currentBid', 0)
+            current_bid = item.get('currentPrice', 0)
             
-            grade = item.get('grade') or {}
-            condition = grade.get('conditionType', {}).get('description', 'Unknown')
             functional = grade.get('functionalType', {}).get('description', 'Unknown')
             damage = grade.get('damageType', {}).get('description', 'Unknown')
             tags = f"Condition: {condition} | Functional: {functional} | Damage: {damage}"
@@ -208,8 +217,9 @@ def check_nellis_auction():
         html_body = """
         <html>
         <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 15px; }
             .container { max-width: 1000px; margin: 0 auto; background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
             h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 0; }
             table { border-collapse: collapse; width: 100%; margin-top: 20px; }
@@ -228,6 +238,19 @@ def check_nellis_auction():
             .tag-dmg { background-color: #fff3e0; color: #ef6c00; border: 1px solid #ffe0b2; }
             .tag-dmg-none { background-color: #f3e5f5; color: #6a1b9a; border: 1px solid #e1bee7; }
             .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #eee; text-align: center; color: #7f8c8d; font-size: 0.9em; }
+            
+            /* Responsive Styles */
+            @media screen and (max-width: 600px) {
+              table, thead, tbody, th, td, tr { display: block; }
+              thead tr { display: none; }
+              tr { border: 1px solid #ddd; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+              td { border: none; border-bottom: 1px solid #eee; position: relative; padding-left: 140px; min-height: 30px; }
+              td:before { position: absolute; top: 12px; left: 12px; width: 120px; white-space: nowrap; font-weight: 600; color: #555; font-size: 12px; }
+              td:nth-of-type(1):before { content: "Item Name"; }
+              td:nth-of-type(2):before { content: "Price / Bid"; }
+              td:nth-of-type(3):before { content: "Condition Details"; }
+              td:nth-of-type(4):before { content: "Location / Link"; }
+            }
           </style>
         </head>
         <body>
@@ -237,10 +260,10 @@ def check_nellis_auction():
             <table>
               <thead>
                 <tr>
-                  <th width="35%">Item Name</th>
+                  <th width="45%">Item Name</th>
                   <th width="15%">Price / Bid</th>
-                  <th width="30%">Condition Details</th>
-                  <th width="20%">Location / Link</th>
+                  <th width="25%">Condition Details</th>
+                  <th width="15%">Location / Link</th>
                 </tr>
               </thead>
               <tbody>
