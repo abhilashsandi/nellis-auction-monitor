@@ -113,7 +113,14 @@ def check_nellis_auction():
                     
                 grade = item.get('grade') or {}
                 condition = grade.get('conditionType', {}).get('description', 'Unknown')
+                functional = grade.get('functionalType', {}).get('description', 'Unknown')
+                damage = grade.get('damageType', {}).get('description', 'Unknown')
+                
                 if str(condition).lower() == 'used':
+                    continue
+                if str(damage).lower() not in ['none', 'unknown', '']:
+                    continue
+                if str(functional).lower() == 'untested':
                     continue
 
                 seen_ids.add(item_id)
@@ -121,8 +128,6 @@ def check_nellis_auction():
                 retail = item.get('retailPrice', 0)
                 current_bid = item.get('currentPrice', 0)
                 
-                functional = grade.get('functionalType', {}).get('description', 'Unknown')
-                damage = grade.get('damageType', {}).get('description', 'Unknown')
                 tags = f"Condition: {condition} | Functional: {functional} | Damage: {damage}"
                 
                 slug = re.sub(r'[^a-zA-Z0-9]+', '-', title).strip('-')
@@ -158,7 +163,14 @@ def check_nellis_auction():
         if loc_state.upper() == TARGET_STATE:
             grade = item.get('grade') or {}
             condition = grade.get('conditionType', {}).get('description', 'Unknown')
+            functional = grade.get('functionalType', {}).get('description', 'Unknown')
+            damage = grade.get('damageType', {}).get('description', 'Unknown')
+            
             if str(condition).lower() == 'used':
+                continue
+            if str(damage).lower() not in ['none', 'unknown', '']:
+                continue
+            if str(functional).lower() == 'untested':
                 continue
 
             seen_ids.add(item_id)
@@ -167,8 +179,6 @@ def check_nellis_auction():
             retail = item.get('retailPrice', 0)
             current_bid = item.get('currentPrice', 0)
             
-            functional = grade.get('functionalType', {}).get('description', 'Unknown')
-            damage = grade.get('damageType', {}).get('description', 'Unknown')
             tags = f"Condition: {condition} | Functional: {functional} | Damage: {damage}"
             
             slug = re.sub(r'[^a-zA-Z0-9]+', '-', title).strip('-')
@@ -200,6 +210,9 @@ def check_nellis_auction():
 
     # 3. Send Notification
     if found_items:
+        # Sort items by retail price high to low
+        found_items.sort(key=lambda x: x['retail'], reverse=True)
+        
         subject = f"📦 Nellis Auction Alert: {len(found_items)} items found in Dallas!"
         
         body_lines = ["The following items matching your criteria were found in Dallas/TX:\n"]
