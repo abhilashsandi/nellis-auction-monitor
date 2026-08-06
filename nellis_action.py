@@ -17,7 +17,8 @@ SEARCH_TERMS = [
     "Ergobaby Metro 3", "Metro 3 Deluxe", "Silver Cross Jet 5", "Silver Cross Jet",
     "hitch mount bike rack", "kuat", "thule", "bike hitch rack", "yakima", "hitch mount cargo", 
     "giraffe retractable hose", "Evenflo", "Britax", "UPPAbaby", "Joolz", "Bugaboo", 
-    "Ergobaby", "Kids Ride Shotgun", "Child Bike seat"
+    "Ergobaby", "Kids Ride Shotgun", "Child Bike seat", "nuna", "eufy", "grand highlander",
+    "toyota grand highlander", "crib"
 ]
 
 GENERIC_BABY_URL = "https://nellisauction.com/search?query=&Taxonomy%20Level%201=Baby&sortBy=retail_price_desc"
