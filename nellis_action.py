@@ -232,7 +232,12 @@ def check_nellis_auction():
         <html>
         <head>
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <meta name="color-scheme" content="light dark">
+          <meta name="supported-color-schemes" content="light dark">
           <style>
+            :root {
+              color-scheme: light dark;
+            }
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 15px; }
             .container { max-width: 1000px; margin: 0 auto; background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
             h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 0; }
@@ -255,15 +260,36 @@ def check_nellis_auction():
             
             /* Responsive Styles */
             @media screen and (max-width: 600px) {
+              body { padding: 5px !important; }
+              .container { padding: 10px !important; }
               table, thead, tbody, th, td, tr { display: block; }
               thead tr { display: none; }
               tr { border: 1px solid #ddd; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-              td { border: none; border-bottom: 1px solid #eee; position: relative; padding-left: 140px; min-height: 30px; }
-              td:before { position: absolute; top: 12px; left: 12px; width: 120px; white-space: nowrap; font-weight: 600; color: #555; font-size: 12px; }
+              td { border: none; border-bottom: 1px solid #eee; position: relative; padding-left: 105px !important; min-height: 30px; padding-right: 10px !important; }
+              td:before { position: absolute; top: 12px; left: 10px; width: 90px; white-space: normal; font-weight: 600; color: #555; font-size: 11px; line-height: 1.2; }
               td:nth-of-type(1):before { content: "Item Name"; }
-              td:nth-of-type(2):before { content: "Price / Bid"; }
-              td:nth-of-type(3):before { content: "Condition Details"; }
-              td:nth-of-type(4):before { content: "Location / Link"; }
+              td:nth-of-type(2):before { content: "Price/Bid"; }
+              td:nth-of-type(3):before { content: "Details"; }
+              td:nth-of-type(4):before { content: "Location"; }
+            }
+            
+            /* Dark Mode Support */
+            @media (prefers-color-scheme: dark) {
+              body { background-color: #121212 !important; color: #e0e0e0 !important; }
+              .container { background-color: #1e1e1e !important; box-shadow: none !important; border: 1px solid #333 !important; }
+              h2 { color: #64b5f6 !important; border-bottom-color: #64b5f6 !important; }
+              th { background-color: #2c2c2c !important; color: #fff !important; border-color: #444 !important; }
+              td { border-color: #444 !important; color: #e0e0e0 !important; }
+              tr:nth-child(even) { background-color: #252525 !important; }
+              tr:hover { background-color: #2a2a2a !important; }
+              a { color: #64b5f6 !important; }
+              a:hover { color: #90caf9 !important; }
+              td:before { color: #aaa !important; }
+              .tag-cond { background-color: #01579b !important; color: #e1f5fe !important; border-color: #0277bd !important; }
+              .tag-func { background-color: #1b5e20 !important; color: #e8f5e9 !important; border-color: #2e7d32 !important; }
+              .tag-dmg { background-color: #e65100 !important; color: #fff3e0 !important; border-color: #ef6c00 !important; }
+              .tag-dmg-none { background-color: #4a148c !important; color: #f3e5f5 !important; border-color: #6a1b9a !important; }
+              .footer { color: #aaa !important; border-top-color: #333 !important; }
             }
           </style>
         </head>
