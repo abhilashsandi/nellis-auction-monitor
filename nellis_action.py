@@ -239,38 +239,27 @@ def check_nellis_auction():
               color-scheme: light dark;
             }
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 15px; }
-            .container { max-width: 1000px; margin: 0 auto; background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+            .container { max-width: 800px; margin: 0 auto; background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
             h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 0; }
-            table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-            th, td { border: 1px solid #e0e0e0; padding: 12px 15px; text-align: left; vertical-align: middle; }
-            th { background-color: #f8f9fa; color: #333; font-weight: 600; }
-            tr:nth-child(even) { background-color: #fafafa; }
-            tr:hover { background-color: #f1f5f9; }
+            table { border-collapse: separate; border-spacing: 0 12px; width: 100%; margin-top: 10px; }
+            tr { background-color: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #e0e0e0; }
+            tr:hover { background-color: #fafafa; }
+            td { padding: 15px; border: none; text-align: left; }
             a { color: #2980b9; text-decoration: none; font-weight: bold; }
             a:hover { text-decoration: underline; color: #1a5276; }
-            .price { color: #27ae60; font-weight: bold; font-size: 1.1em; }
-            .bid { color: #e74c3c; font-weight: bold; font-size: 1.1em; }
             .tag-group { display: flex; flex-wrap: wrap; gap: 6px; }
             .tag { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
             .tag-cond { background-color: #e1f5fe; color: #0277bd; border: 1px solid #b3e5fc; }
             .tag-func { background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
             .tag-dmg { background-color: #fff3e0; color: #ef6c00; border: 1px solid #ffe0b2; }
             .tag-dmg-none { background-color: #f3e5f5; color: #6a1b9a; border: 1px solid #e1bee7; }
-            .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #eee; text-align: center; color: #7f8c8d; font-size: 0.9em; }
+            .footer { margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; text-align: center; color: #7f8c8d; font-size: 0.9em; }
             
             /* Responsive Styles */
             @media screen and (max-width: 600px) {
               body { padding: 5px !important; }
               .container { padding: 10px !important; }
-              table, thead, tbody, th, td, tr { display: block; }
-              thead tr { display: none; }
-              tr { border: 1px solid #ddd; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-              td { border: none; border-bottom: 1px solid #eee; position: relative; padding-left: 105px !important; min-height: 30px; padding-right: 10px !important; }
-              td:before { position: absolute; top: 12px; left: 10px; width: 90px; white-space: normal; font-weight: 600; color: #555; font-size: 11px; line-height: 1.2; }
-              td:nth-of-type(1):before { content: "Item Name"; }
-              td:nth-of-type(2):before { content: "Price/Bid"; }
-              td:nth-of-type(3):before { content: "Details"; }
-              td:nth-of-type(4):before { content: "Location"; }
+              td { padding: 12px !important; }
             }
             
             /* Dark Mode Support */
@@ -298,14 +287,6 @@ def check_nellis_auction():
             <h2>📦 Nellis Auction Alert</h2>
             <p>The following items matching your criteria were found in <strong>Dallas, TX</strong>:</p>
             <table>
-              <thead>
-                <tr>
-                  <th width="45%">Item Name</th>
-                  <th width="15%">Price / Bid</th>
-                  <th width="25%">Condition Details</th>
-                  <th width="15%">Location / Link</th>
-                </tr>
-              </thead>
               <tbody>
         """
         
@@ -314,23 +295,20 @@ def check_nellis_auction():
             html_body += f"""
                 <tr>
                   <td>
-                    <div style="font-size: 14px; margin-bottom: 5px;">{item['title']}</div>
-                    <div style="font-size: 11px; color: #7f8c8d;">Search Term: {item['term']}</div>
-                  </td>
-                  <td>
-                    <div class="price">Retail: ${item['retail']}</div>
-                    <div class="bid">Bid: ${item['bid']}</div>
-                  </td>
-                  <td>
+                    <div style="font-size: 15px; font-weight: bold; margin-bottom: 6px;">
+                      <a href="{item['url']}" target="_blank">{item['title']}</a>
+                    </div>
+                    <div style="font-size: 13px; color: #555; margin-bottom: 8px; line-height: 1.4;">
+                      <strong>Retail:</strong> <span style="color: #27ae60;">${item['retail']}</span> &nbsp;&bull;&nbsp; 
+                      <strong>Bid:</strong> <span style="color: #e74c3c;">${item['bid']}</span> &nbsp;&bull;&nbsp; 
+                      <strong>Location:</strong> {item['city']}, TX <br/>
+                      <strong>Search Term:</strong> {item['term']}
+                    </div>
                     <div class="tag-group">
                       <span class="tag tag-cond">Cond: {item['condition']}</span>
                       <span class="tag tag-func">Func: {item['functional']}</span>
                       <span class="tag {dmg_class}">Dmg: {item['damage']}</span>
                     </div>
-                  </td>
-                  <td>
-                    <div style="margin-bottom: 8px; font-size: 13px;">{item['city']}, TX</div>
-                    <a href="{item['url']}" target="_blank">View Item &rarr;</a>
                   </td>
                 </tr>
             """
