@@ -58,29 +58,16 @@ def send_notification(subject, plain_body, html_body=None):
     except Exception as e:
         print(f"Failed to send email notification: {e}")
 
-def find_items(obj):
-    items = []
-    if isinstance(obj, dict):
-        if 'title' in obj and 'location' in obj:
-            items.append(obj)
-        for v in obj.values():
-            items.extend(find_items(v))
-    elif isinstance(obj, list):
-        for i in obj:
-            items.extend(find_items(i))
-    return items
-
 def fetch_and_parse(url):
     try:
-        req = urllib.request.Request(url, headers={
+        api_url = url + "&_data=routes%2Fsearch" if "?" in url else url + "?_data=routes%2Fsearch"
+        req = urllib.request.Request(api_url, headers={
             'User-Agent': 'Mozilla/5.0',
             'Cookie': DALLAS_COOKIE
         })
-        html = urllib.request.urlopen(req, timeout=15).read().decode('utf-8', errors='ignore')
-        match = re.search(r'window\.__remixContext\s*=\s*(\{.*?\});</script>', html, re.DOTALL)
-        if match:
-            data = json.loads(match.group(1))
-            return find_items(data)
+        response = urllib.request.urlopen(req, timeout=15).read().decode('utf-8', errors='ignore')
+        data = json.loads(response)
+        return data.get('products', [])
     except Exception as e:
         print(f"Error fetching {url}: {e}")
     return []
