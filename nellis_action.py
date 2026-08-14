@@ -112,10 +112,14 @@ def check_nellis_auction():
                 if str(functional).lower() == 'untested':
                     continue
 
-                seen_ids.add(item_id)
                 loc_city = loc.get('city', '')
                 retail = item.get('retailPrice', 0)
                 current_bid = item.get('currentPrice', 0)
+                
+                if retail > 0 and current_bid >= retail * 0.33:
+                    continue
+                    
+                seen_ids.add(item_id)
                 
                 photos = item.get('photos', [])
                 image_url = photos[0].get('url') if photos else 'https://via.placeholder.com/80'
@@ -166,11 +170,15 @@ def check_nellis_auction():
             if str(functional).lower() == 'untested':
                 continue
 
-            seen_ids.add(item_id)
             title = item.get('title', 'Unknown Item')
             loc_city = loc.get('city', '')
             retail = item.get('retailPrice', 0)
             current_bid = item.get('currentPrice', 0)
+            
+            if retail > 0 and current_bid >= retail * 0.33:
+                continue
+                
+            seen_ids.add(item_id)
             
             photos = item.get('photos', [])
             image_url = photos[0].get('url') if photos else 'https://via.placeholder.com/80'
