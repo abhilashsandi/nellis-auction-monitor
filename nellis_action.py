@@ -18,7 +18,8 @@ SEARCH_TERMS = [
     "hitch mount bike rack", "kuat", "thule", "bike hitch rack", "yakima", "hitch mount cargo", 
     "giraffe retractable hose", "Evenflo", "Britax", "UPPAbaby", "Joolz", "Bugaboo", 
     "Ergobaby", "Kids Ride Shotgun", "Child Bike seat", "nuna", "eufy", "grand highlander",
-    "toyota grand highlander", "crib"
+    "toyota grand highlander", "crib", "bike stand", "mist fan", "milk frother", 
+    "misting fan", "wooden playpen", "nutri bullet", "ninja"
 ]
 
 GENERIC_BABY_URL = "https://nellisauction.com/search?query=&Taxonomy%20Level%201=Baby&sortBy=retail_price_desc"
@@ -116,6 +117,9 @@ def check_nellis_auction():
                 retail = item.get('retailPrice', 0)
                 current_bid = item.get('currentPrice', 0)
                 
+                photos = item.get('photos', [])
+                image_url = photos[0].get('url') if photos else 'https://via.placeholder.com/80'
+                
                 tags = f"Condition: {condition} | Functional: {functional} | Damage: {damage}"
                 
                 slug = re.sub(r'[^a-zA-Z0-9]+', '-', title).strip('-')
@@ -127,6 +131,7 @@ def check_nellis_auction():
                     'title': title,
                     'city': loc_city,
                     'url': item_url,
+                    'image_url': image_url,
                     'retail': retail,
                     'bid': current_bid,
                     'tags': tags,
@@ -167,6 +172,9 @@ def check_nellis_auction():
             retail = item.get('retailPrice', 0)
             current_bid = item.get('currentPrice', 0)
             
+            photos = item.get('photos', [])
+            image_url = photos[0].get('url') if photos else 'https://via.placeholder.com/80'
+            
             tags = f"Condition: {condition} | Functional: {functional} | Damage: {damage}"
             
             slug = re.sub(r'[^a-zA-Z0-9]+', '-', title).strip('-')
@@ -178,6 +186,7 @@ def check_nellis_auction():
                 'title': title,
                 'city': loc_city,
                 'url': item_url,
+                'image_url': image_url,
                 'retail': retail,
                 'bid': current_bid,
                 'tags': tags,
@@ -279,23 +288,33 @@ def check_nellis_auction():
         
         for item in found_items:
             dmg_class = "tag-dmg-none" if str(item['damage']).lower() == "none" else "tag-dmg"
+            img_url = item.get('image_url', 'https://via.placeholder.com/80')
             html_body += f"""
                 <tr>
                   <td>
-                    <div style="font-size: 15px; font-weight: bold; margin-bottom: 6px;">
-                      <a href="{item['url']}" target="_blank">{item['title']}</a>
-                    </div>
-                    <div style="font-size: 13px; color: #555; margin-bottom: 8px; line-height: 1.4;">
-                      <strong>Retail:</strong> <span style="color: #27ae60;">${item['retail']}</span> &nbsp;&bull;&nbsp; 
-                      <strong>Bid:</strong> <span style="color: #e74c3c;">${item['bid']}</span> &nbsp;&bull;&nbsp; 
-                      <strong>Location:</strong> {item['city']}, TX <br/>
-                      <strong>Search Term:</strong> {item['term']}
-                    </div>
-                    <div class="tag-group">
-                      <span class="tag tag-cond">Cond: {item['condition']}</span>
-                      <span class="tag tag-func">Func: {item['functional']}</span>
-                      <span class="tag {dmg_class}">Dmg: {item['damage']}</span>
-                    </div>
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td width="90" valign="top" style="padding-right: 12px; width: 90px;">
+                          <img src="{img_url}" style="width: 80px; height: 80px; object-fit: contain; border-radius: 4px; display: block; border: 1px solid #ddd;" alt="item thumbnail" />
+                        </td>
+                        <td valign="top">
+                          <div style="font-size: 15px; font-weight: bold; margin-bottom: 6px;">
+                            <a href="{item['url']}" target="_blank">{item['title']}</a>
+                          </div>
+                          <div style="font-size: 13px; color: #555; margin-bottom: 8px; line-height: 1.4;">
+                            <strong>Retail:</strong> <span style="color: #27ae60;">${item['retail']}</span> &nbsp;&bull;&nbsp; 
+                            <strong>Bid:</strong> <span style="color: #e74c3c;">${item['bid']}</span> &nbsp;&bull;&nbsp; 
+                            <strong>Location:</strong> {item['city']}, TX <br/>
+                            <strong>Search Term:</strong> {item['term']}
+                          </div>
+                          <div class="tag-group">
+                            <span class="tag tag-cond">Cond: {item['condition']}</span>
+                            <span class="tag tag-func">Func: {item['functional']}</span>
+                            <span class="tag {dmg_class}">Dmg: {item['damage']}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
             """
