@@ -5,6 +5,7 @@ import smtplib
 import urllib.request
 import urllib.parse
 from email.message import EmailMessage
+from datetime import datetime, timezone
 
 # ==========================================
 # CONFIGURATION
@@ -20,6 +21,11 @@ SEARCH_TERMS = [
     "Ergobaby", "Kids Ride Shotgun", "Child Bike seat", "nuna", "eufy", "grand highlander",
     "toyota grand highlander", "crib", "bike stand", "mist fan", "milk frother", 
     "misting fan", "wooden playpen", "nutri bullet", "ninja"
+]
+
+NEGATIVE_KEYWORDS = [
+    "toy", "turtles", "figure", "costume", "pacifier", "bottle", "nipple", "shirt",
+    "pants", "clothes", "shoes", "diaper", "wipes", "action figure", "megazord"
 ]
 
 GENERIC_BABY_URL = "https://nellisauction.com/search?query=&Taxonomy%20Level%201=Baby&sortBy=retail_price_desc"
@@ -58,6 +64,43 @@ def send_notification(subject, plain_body, html_body=None):
         print("Notification sent successfully!")
     except Exception as e:
         print(f"Failed to send email notification: {e}")
+
+def parse_item_metadata(item, retail, current_bid):
+    discount_pct = 0
+    if retail > 0:
+        discount_pct = int(((retail - current_bid) / retail) * 100)
+        if discount_pct < 0: discount_pct = 0
+        
+    close_time_str = item.get('closeTime', '')
+    time_left_str = ""
+    is_urgent = False
+    sort_val = float('inf')
+    
+    if close_time_str:
+        try:
+            close_time = datetime.strptime(close_time_str, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
+            diff = close_time - now
+            sort_val = diff.total_seconds()
+            
+            if sort_val > 0:
+                hours_left = sort_val / 3600
+                if hours_left <= 24:
+                    is_urgent = True
+                    if hours_left < 1:
+                        mins = int(sort_val / 60)
+                        time_left_str = f"⏳ Ends in {mins}m!"
+                    else:
+                        time_left_str = f"⏳ Ends in {int(hours_left)}h!"
+                else:
+                    days = int(hours_left / 24)
+                    time_left_str = f"Ends in {days}d"
+            else:
+                time_left_str = "Ended"
+        except Exception:
+            pass
+            
+    return discount_pct, time_left_str, is_urgent, sort_val
 
 def fetch_and_parse(url):
     try:
@@ -100,6 +143,9 @@ def check_nellis_auction():
                 if not all(word in title.lower() for word in term_words):
                     continue
                     
+                if any(neg.lower() in title.lower() for neg in NEGATIVE_KEYWORDS):
+                    continue
+                    
                 grade = item.get('grade') or {}
                 condition = grade.get('conditionType', {}).get('description', 'Unknown')
                 functional = grade.get('functionalType', {}).get('description', 'Unknown')
@@ -121,6 +167,8 @@ def check_nellis_auction():
                     
                 seen_ids.add(item_id)
                 
+                discount_pct, time_left_str, is_urgent, sort_val = parse_item_metadata(item, retail, current_bid)
+                
                 photos = item.get('photos', [])
                 image_url = photos[0].get('url') if photos else 'https://via.placeholder.com/80'
                 
@@ -138,6 +186,10 @@ def check_nellis_auction():
                     'image_url': image_url,
                     'retail': retail,
                     'bid': current_bid,
+                    'discount_pct': discount_pct,
+                    'time_left_str': time_left_str,
+                    'is_urgent': is_urgent,
+                    'sort_val': sort_val,
                     'tags': tags,
                     'condition': condition,
                     'functional': functional,
@@ -171,6 +223,10 @@ def check_nellis_auction():
                 continue
 
             title = item.get('title', 'Unknown Item')
+            
+            if any(neg.lower() in title.lower() for neg in NEGATIVE_KEYWORDS):
+                continue
+                
             loc_city = loc.get('city', '')
             retail = item.get('retailPrice', 0)
             current_bid = item.get('currentPrice', 0)
@@ -179,6 +235,8 @@ def check_nellis_auction():
                 continue
                 
             seen_ids.add(item_id)
+            
+            discount_pct, time_left_str, is_urgent, sort_val = parse_item_metadata(item, retail, current_bid)
             
             photos = item.get('photos', [])
             image_url = photos[0].get('url') if photos else 'https://via.placeholder.com/80'
@@ -197,6 +255,10 @@ def check_nellis_auction():
                 'image_url': image_url,
                 'retail': retail,
                 'bid': current_bid,
+                'discount_pct': discount_pct,
+                'time_left_str': time_left_str,
+                'is_urgent': is_urgent,
+                'sort_val': sort_val,
                 'tags': tags,
                 'condition': condition,
                 'functional': functional,
@@ -294,9 +356,14 @@ def check_nellis_auction():
               <tbody>
         """
         
+        found_items.sort(key=lambda x: x.get('sort_val', float('inf')))
         for item in found_items:
             dmg_class = "tag-dmg-none" if str(item['damage']).lower() == "none" else "tag-dmg"
             img_url = item.get('image_url', 'https://via.placeholder.com/80')
+            
+            urgency_html = f'<span style="color: #e74c3c; font-weight: bold;">{item["time_left_str"]}</span> &nbsp;&bull;&nbsp; ' if item.get('is_urgent') else f'<span>{item.get("time_left_str", "")}</span> &nbsp;&bull;&nbsp; ' if item.get("time_left_str") else ""
+            discount_html = f'<span style="background: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">🔥 {item["discount_pct"]}% OFF</span>' if item.get("discount_pct", 0) > 0 else ""
+            
             html_body += f"""
                 <tr>
                   <td>
@@ -307,10 +374,10 @@ def check_nellis_auction():
                         </td>
                         <td valign="top">
                           <div style="font-size: 15px; font-weight: bold; margin-bottom: 6px;">
-                            <a href="{item['url']}" target="_blank">{item['title']}</a>
+                            <a href="{item['url']}" target="_blank">{item['title']}</a> {discount_html}
                           </div>
                           <div style="font-size: 13px; color: #555; margin-bottom: 8px; line-height: 1.4;">
-                            <strong>Retail:</strong> <span style="color: #27ae60;">${item['retail']}</span> &nbsp;&bull;&nbsp; 
+                            {urgency_html}<strong>Retail:</strong> <span style="color: #27ae60;">${item['retail']}</span> &nbsp;&bull;&nbsp; 
                             <strong>Bid:</strong> <span style="color: #e74c3c;">${item['bid']}</span> &nbsp;&bull;&nbsp; 
                             <strong>Location:</strong> {item['city']}, TX <br/>
                             <strong>Search Term:</strong> {item['term']}
