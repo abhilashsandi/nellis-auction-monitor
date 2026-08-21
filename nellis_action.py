@@ -19,8 +19,9 @@ SEARCH_TERMS = [
     "hitch mount bike rack", "kuat", "thule", "bike hitch rack", "yakima", "hitch mount cargo", 
     "giraffe retractable hose", "Evenflo", "Britax", "UPPAbaby", "Joolz", "Bugaboo", 
     "Ergobaby", "Kids Ride Shotgun", "Child Bike seat", "nuna", "eufy", "grand highlander",
-    "toyota grand highlander", "crib", "bike stand", "mist fan", "milk frother", 
-    "misting fan", "wooden playpen", "nutri bullet", "ninja"
+    "toyota grand highlander", "bike stand", "mist fan", "milk frother", 
+    "misting fan", "wooden playpen", "nutri bullet", "ninja",
+    "wireless power bank", "pixel 11 pro", "dash cam"
 ]
 
 NEGATIVE_KEYWORDS = [
@@ -280,9 +281,9 @@ def check_nellis_auction():
         # Sort items by retail price high to low
         found_items.sort(key=lambda x: x['retail'], reverse=True)
         
-        subject = f"📦 Nellis Auction Alert: {len(found_items)} items found in Dallas!"
+        subject = f"📦 Nellis Auction Alert: {len(found_items)} items found!"
         
-        body_lines = ["The following items matching your criteria were found in Dallas/TX:\n"]
+        body_lines = ["The following items matching your criteria were found:\n"]
         for item in found_items:
             body_lines.append(f"- {item['title']}")
             body_lines.append(f"  Search Term: {item['term']}")
@@ -307,6 +308,7 @@ def check_nellis_auction():
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 15px; }
             .container { max-width: 800px; margin: 0 auto; background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
             h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 0; }
+            h3 { color: #2980b9; margin-top: 25px; border-bottom: 1px solid #eee; padding-bottom: 5px; font-size: 18px; }
             table { border-collapse: separate; border-spacing: 0 12px; width: 100%; margin-top: 10px; }
             tr { background-color: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #e0e0e0; }
             tr:hover { background-color: #fafafa; }
@@ -333,6 +335,7 @@ def check_nellis_auction():
               body { background-color: #121212 !important; color: #e0e0e0 !important; }
               .container { background-color: #1e1e1e !important; box-shadow: none !important; border: 1px solid #333 !important; }
               h2 { color: #64b5f6 !important; border-bottom-color: #64b5f6 !important; }
+              h3 { color: #64b5f6 !important; border-bottom-color: #333 !important; }
               th { background-color: #2c2c2c !important; color: #fff !important; border-color: #444 !important; }
               td { border-color: #444 !important; color: #e0e0e0 !important; }
               tr:nth-child(even) { background-color: #252525 !important; }
@@ -351,47 +354,62 @@ def check_nellis_auction():
         <body>
           <div class="container">
             <h2>📦 Nellis Auction Alert</h2>
-            <p>The following items matching your criteria were found in <strong>Dallas, TX</strong>:</p>
-            <table>
-              <tbody>
+            <p>The following items matching your criteria were found:</p>
         """
         
         found_items.sort(key=lambda x: x.get('sort_val', float('inf')))
+        
+        items_by_city = {}
         for item in found_items:
-            dmg_class = "tag-dmg-none" if str(item['damage']).lower() == "none" else "tag-dmg"
-            img_url = item.get('image_url', 'https://via.placeholder.com/80')
+            city = item.get('city', 'Unknown Location')
+            if city not in items_by_city:
+                items_by_city[city] = []
+            items_by_city[city].append(item)
             
-            urgency_html = f'<span style="color: #e74c3c; font-weight: bold;">{item["time_left_str"]}</span> &nbsp;&bull;&nbsp; ' if item.get('is_urgent') else f'<span>{item.get("time_left_str", "")}</span> &nbsp;&bull;&nbsp; ' if item.get("time_left_str") else ""
-            discount_html = f'<span style="background: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">🔥 {item["discount_pct"]}% OFF</span>' if item.get("discount_pct", 0) > 0 else ""
-            
+        for city, items in items_by_city.items():
             html_body += f"""
-                <tr>
-                  <td>
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                      <tr>
-                        <td width="90" valign="top" style="padding-right: 12px; width: 90px;">
-                          <img src="{img_url}" style="width: 80px; height: 80px; object-fit: contain; border-radius: 4px; display: block; border: 1px solid #ddd;" alt="item thumbnail" />
-                        </td>
-                        <td valign="top">
-                          <div style="font-size: 15px; font-weight: bold; margin-bottom: 6px;">
-                            <a href="{item['url']}" target="_blank">{item['title']}</a> {discount_html}
-                          </div>
-                          <div style="font-size: 13px; color: #555; margin-bottom: 8px; line-height: 1.4;">
-                            {urgency_html}<strong>Retail:</strong> <span style="color: #27ae60;">${item['retail']}</span> &nbsp;&bull;&nbsp; 
-                            <strong>Bid:</strong> <span style="color: #e74c3c;">${item['bid']}</span> &nbsp;&bull;&nbsp; 
-                            <strong>Location:</strong> {item['city']}, TX <br/>
-                            <strong>Search Term:</strong> {item['term']}
-                          </div>
-                          <div class="tag-group">
-                            <span class="tag tag-cond">Cond: {item['condition']}</span>
-                            <span class="tag tag-func">Func: {item['functional']}</span>
-                            <span class="tag {dmg_class}">Dmg: {item['damage']}</span>
-                          </div>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
+            <h3>📍 {city}, TX</h3>
+            <table>
+              <tbody>
+            """
+            for item in items:
+                dmg_class = "tag-dmg-none" if str(item['damage']).lower() == "none" else "tag-dmg"
+                img_url = item.get('image_url', 'https://via.placeholder.com/80')
+                
+                urgency_html = f'<span style="color: #e74c3c; font-weight: bold;">{item["time_left_str"]}</span> &nbsp;&bull;&nbsp; ' if item.get('is_urgent') else f'<span>{item.get("time_left_str", "")}</span> &nbsp;&bull;&nbsp; ' if item.get("time_left_str") else ""
+                discount_html = f'<span style="background: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">🔥 {item["discount_pct"]}% OFF</span>' if item.get("discount_pct", 0) > 0 else ""
+                
+                html_body += f"""
+                    <tr>
+                      <td>
+                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                          <tr>
+                            <td width="90" valign="top" style="padding-right: 12px; width: 90px;">
+                              <img src="{img_url}" style="width: 80px; height: 80px; object-fit: contain; border-radius: 4px; display: block; border: 1px solid #ddd;" alt="item thumbnail" />
+                            </td>
+                            <td valign="top">
+                              <div style="font-size: 15px; font-weight: bold; margin-bottom: 6px;">
+                                <a href="{item['url']}" target="_blank">{item['title']}</a> {discount_html}
+                              </div>
+                              <div style="font-size: 13px; color: #555; margin-bottom: 8px; line-height: 1.4;">
+                                {urgency_html}<strong>Retail:</strong> <span style="color: #27ae60;">${item['retail']}</span> &nbsp;&bull;&nbsp; 
+                                <strong>Bid:</strong> <span style="color: #e74c3c;">${item['bid']}</span> <br/>
+                                <strong>Search Term:</strong> {item['term']}
+                              </div>
+                              <div class="tag-group">
+                                <span class="tag tag-cond">Cond: {item['condition']}</span>
+                                <span class="tag tag-func">Func: {item['functional']}</span>
+                                <span class="tag {dmg_class}">Dmg: {item['damage']}</span>
+                              </div>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                """
+            html_body += """
+              </tbody>
+            </table>
             """
             
         html_body += """
