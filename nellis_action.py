@@ -6,6 +6,7 @@ import urllib.request
 import urllib.parse
 from email.message import EmailMessage
 from datetime import datetime, timezone
+import google.generativeai as genai
 
 # ==========================================
 # CONFIGURATION
@@ -30,6 +31,7 @@ NEGATIVE_KEYWORDS = [
 ]
 
 GENERIC_BABY_URL = "https://nellisauction.com/search?query=&Taxonomy%20Level%201=Baby&sortBy=retail_price_desc"
+DISCOVERY_URL = "https://nellisauction.com/search?query=&sortBy=retail_price_desc"
 
 TARGET_STATE = "TX"
 
@@ -41,6 +43,10 @@ DALLAS_COOKIE = "__shopping-location=eyJzaG9wcGluZ0xvY2F0aW9uIjp7ImlkIjo4LCJuYW1
 EMAIL_SENDER = os.environ.get("EMAIL_SENDER")
 EMAIL_APP_PASSWORD = os.environ.get("EMAIL_APP_PASSWORD")
 EMAIL_RECEIVER = os.environ.get("EMAIL_RECEIVER")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 
 def send_notification(subject, plain_body, html_body=None):
     if not EMAIL_SENDER or not EMAIL_APP_PASSWORD:
@@ -276,7 +282,92 @@ def check_nellis_auction():
     if selected_baby_items:
         found_items.extend(selected_baby_items)
 
-    # 3. Send Notification
+    # 3. AI Discovery (6 PM only)
+    if datetime.now(timezone.utc).hour in [21, 22, 23] and GEMINI_API_KEY:
+        print("\nRunning AI Discovery for 6 PM mail...")
+        discovery_items = fetch_and_parse(DISCOVERY_URL)
+        candidates = []
+        for item in discovery_items:
+            item_id = item.get('id') or item.get('objectID')
+            if not item_id or item_id in seen_ids: continue
+            
+            loc = item.get('location', {})
+            loc_state = loc.get('state', '')
+            if loc_state.upper() != TARGET_STATE: continue
+            
+            title = item.get('title', 'Unknown Item')
+            if any(neg.lower() in title.lower() for neg in NEGATIVE_KEYWORDS): continue
+            
+            retail = item.get('retailPrice', 0)
+            current_bid = item.get('currentPrice', 0)
+            
+            discount_pct, time_left_str, is_urgent, sort_val = parse_item_metadata(item, retail, current_bid)
+            
+            if discount_pct >= 60:
+                grade = item.get('grade') or {}
+                condition = grade.get('conditionType', {}).get('description', 'Unknown')
+                functional = grade.get('functionalType', {}).get('description', 'Unknown')
+                damage = grade.get('damageType', {}).get('description', 'Unknown')
+                
+                if str(condition).lower() == 'used': continue
+                if str(damage).lower() not in ['none', 'unknown', '']: continue
+                if str(functional).lower() == 'untested': continue
+                
+                loc_city = loc.get('city', '')
+                photos = item.get('photos', [])
+                image_url = photos[0].get('url') if photos else 'https://via.placeholder.com/80'
+                tags = f"Condition: {condition} | Functional: {functional} | Damage: {damage}"
+                slug = re.sub(r'[^a-zA-Z0-9]+', '-', title).strip('-')
+                
+                candidates.append({
+                    'id': item_id,
+                    'category': 'AI Discovery',
+                    'term': 'AI Recommendation',
+                    'title': title,
+                    'city': loc_city,
+                    'url': f"https://nellisauction.com/p/{slug}/{item_id}",
+                    'image_url': image_url,
+                    'retail': retail,
+                    'bid': current_bid,
+                    'discount_pct': discount_pct,
+                    'time_left_str': time_left_str,
+                    'is_urgent': is_urgent,
+                    'sort_val': sort_val,
+                    'tags': tags,
+                    'condition': condition,
+                    'functional': functional,
+                    'damage': damage
+                })
+        
+        if candidates:
+            # Randomly shuffle or just take top 150
+            import random
+            random.shuffle(candidates)
+            sample_candidates = candidates[:150]
+            candidate_json = json.dumps([{ 'id': c['id'], 'title': c['title'], 'retail': c['retail'], 'bid': c['bid'] } for c in sample_candidates])
+            
+            prompt = f"""
+            You are a personal shopper. I am a senior developer aged 35 living in Dallas. My hobbies are mountain biking, travelling, hiking, and running. I also have a 4 month old baby girl.
+            From the following JSON list of auction items, select up to 10 items that I would find incredibly useful or interesting based on my profile. 
+            Return ONLY a JSON array of the string IDs of the selected items. Do not include markdown formatting like ```json.
+            
+            Items:
+            {candidate_json}
+            """
+            model = genai.GenerativeModel('gemini-3.6-flash')
+            try:
+                response = model.generate_content(prompt)
+                raw_text = response.text.strip().strip('```json').strip('```').strip()
+                selected_ids = json.loads(raw_text)
+                for c in sample_candidates:
+                    if str(c['id']) in [str(i) for i in selected_ids]:
+                        seen_ids.add(c['id'])
+                        found_items.append(c)
+                        print(f"  -> AI FOUND: {c['title']} ({c['discount_pct']}% OFF)")
+            except Exception as e:
+                print("AI parsing failed:", e)
+
+    # 4. Send Notification
     if found_items:
         # Sort items by retail price high to low
         found_items.sort(key=lambda x: x['retail'], reverse=True)
@@ -369,48 +460,61 @@ def check_nellis_auction():
         for city, items in items_by_city.items():
             html_body += f"""
             <h3>📍 {city}, TX</h3>
-            <table>
-              <tbody>
             """
+            
+            tier_80 = []
+            tier_60 = []
+            tier_other = []
+            
             for item in items:
-                dmg_class = "tag-dmg-none" if str(item['damage']).lower() == "none" else "tag-dmg"
-                img_url = item.get('image_url', 'https://via.placeholder.com/80')
-                
-                urgency_html = f'<span style="color: #e74c3c; font-weight: bold;">{item["time_left_str"]}</span> &nbsp;&bull;&nbsp; ' if item.get('is_urgent') else f'<span>{item.get("time_left_str", "")}</span> &nbsp;&bull;&nbsp; ' if item.get("time_left_str") else ""
-                discount_html = f'<span style="background: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">🔥 {item["discount_pct"]}% OFF</span>' if item.get("discount_pct", 0) > 0 else ""
-                
-                html_body += f"""
-                    <tr>
-                      <td>
-                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                          <tr>
-                            <td width="90" valign="top" style="padding-right: 12px; width: 90px;">
-                              <img src="{img_url}" style="width: 80px; height: 80px; object-fit: contain; border-radius: 4px; display: block; border: 1px solid #ddd;" alt="item thumbnail" />
-                            </td>
-                            <td valign="top">
-                              <div style="font-size: 15px; font-weight: bold; margin-bottom: 6px;">
-                                <a href="{item['url']}" target="_blank">{item['title']}</a> {discount_html}
-                              </div>
-                              <div style="font-size: 13px; color: #555; margin-bottom: 8px; line-height: 1.4;">
-                                {urgency_html}<strong>Retail:</strong> <span style="color: #27ae60;">${item['retail']}</span> &nbsp;&bull;&nbsp; 
-                                <strong>Bid:</strong> <span style="color: #e74c3c;">${item['bid']}</span> <br/>
-                                <strong>Search Term:</strong> {item['term']}
-                              </div>
-                              <div class="tag-group">
-                                <span class="tag tag-cond">Cond: {item['condition']}</span>
-                                <span class="tag tag-func">Func: {item['functional']}</span>
-                                <span class="tag {dmg_class}">Dmg: {item['damage']}</span>
-                              </div>
-                            </td>
-                          </tr>
-                        </table>
-                      </td>
-                    </tr>
-                """
-            html_body += """
-              </tbody>
-            </table>
-            """
+                discount = item.get('discount_pct', 0)
+                if discount >= 80:
+                    tier_80.append(item)
+                elif discount >= 60:
+                    tier_60.append(item)
+                else:
+                    tier_other.append(item)
+                    
+            for tier_name, tier_items in [("🔥 Over 80% OFF", tier_80), ("💰 Over 60% OFF", tier_60), ("📉 Other Deals", tier_other)]:
+                if not tier_items: continue
+                html_body += f"<h4 style='color: #e67e22; margin-top: 15px; margin-bottom: 5px; font-size: 15px;'>{tier_name}</h4>"
+                html_body += "<table><tbody>"
+                for item in tier_items:
+                    dmg_class = "tag-dmg-none" if str(item['damage']).lower() == "none" else "tag-dmg"
+                    img_url = item.get('image_url', 'https://via.placeholder.com/80')
+                    
+                    urgency_html = f'<span style="color: #e74c3c; font-weight: bold;">{item["time_left_str"]}</span> &nbsp;&bull;&nbsp; ' if item.get('is_urgent') else f'<span>{item.get("time_left_str", "")}</span> &nbsp;&bull;&nbsp; ' if item.get("time_left_str") else ""
+                    discount_html = f'<span style="background: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">🔥 {item["discount_pct"]}% OFF</span>' if item.get("discount_pct", 0) > 0 else ""
+                    
+                    html_body += f"""
+                        <tr>
+                          <td>
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                              <tr>
+                                <td width="90" valign="top" style="padding-right: 12px; width: 90px;">
+                                  <img src="{img_url}" style="width: 80px; height: 80px; object-fit: contain; border-radius: 4px; display: block; border: 1px solid #ddd;" alt="item thumbnail" />
+                                </td>
+                                <td valign="top">
+                                  <div style="font-size: 15px; font-weight: bold; margin-bottom: 6px;">
+                                    <a href="{item['url']}" target="_blank">{item['title']}</a> {discount_html}
+                                  </div>
+                                  <div style="font-size: 13px; color: #555; margin-bottom: 8px; line-height: 1.4;">
+                                    {urgency_html}<strong>Retail:</strong> <span style="color: #27ae60;">${item['retail']}</span> &nbsp;&bull;&nbsp; 
+                                    <strong>Bid:</strong> <span style="color: #e74c3c;">${item['bid']}</span> <br/>
+                                    <strong>Search Term:</strong> {item['term']}
+                                  </div>
+                                  <div class="tag-group">
+                                    <span class="tag tag-cond">Cond: {item['condition']}</span>
+                                    <span class="tag tag-func">Func: {item['functional']}</span>
+                                    <span class="tag {dmg_class}">Dmg: {item['damage']}</span>
+                                  </div>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                    """
+                html_body += "</tbody></table>"
             
         html_body += """
               </tbody>
