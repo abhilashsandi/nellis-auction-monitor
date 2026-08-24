@@ -6,8 +6,8 @@ on:
       - master
       - main
   schedule:
-    # Runs every day at 9 AM, 6 PM, and 10 PM (13:00, 22:00, and 02:00 UTC)
-    - cron: '0 2,13,22 * * *'
+    # Runs every day at 6 PM and 10 PM (22:00 and 02:00 UTC)
+    - cron: '0 2,22 * * *'
   workflow_dispatch:
 
 jobs:
