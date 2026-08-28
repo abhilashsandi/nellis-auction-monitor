@@ -283,7 +283,7 @@ def check_nellis_auction():
         found_items.extend(selected_baby_items)
 
     # 3. AI Discovery (6 PM only)
-    if datetime.now(timezone.utc).hour in [21, 22, 23] and GEMINI_API_KEY:
+    if datetime.now(timezone.utc).hour in [21, 22, 23, 0, 1] and GEMINI_API_KEY:
         print("\nRunning AI Discovery for 6 PM mail...")
         discovery_items = fetch_and_parse(DISCOVERY_URL)
         candidates = []
