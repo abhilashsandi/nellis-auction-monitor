@@ -22,7 +22,9 @@ SEARCH_TERMS = [
     "Ergobaby", "Kids Ride Shotgun", "Child Bike seat", "nuna", "eufy", "grand highlander",
     "toyota grand highlander", "bike stand", "mist fan", "milk frother", 
     "misting fan", "wooden playpen", "nutri bullet", "ninja",
-    "wireless power bank", "pixel 11 pro", "dash cam"
+    "wireless power bank", "pixel 11 pro", "dash cam", "pixel 11",
+    "camping", "camping tent", "camping chair", "yeti cooler", 
+    "sleeping bag", "camping stove", "coleman", "igloo cooler"
 ]
 
 NEGATIVE_KEYWORDS = [
