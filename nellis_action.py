@@ -20,11 +20,28 @@ SEARCH_TERMS = [
     "hitch mount bike rack", "kuat", "thule", "bike hitch rack", "yakima", "hitch mount cargo", 
     "giraffe retractable hose", "Evenflo", "Britax", "UPPAbaby", "Joolz", "Bugaboo", 
     "Ergobaby", "Kids Ride Shotgun", "Child Bike seat", "nuna", "eufy", "grand highlander",
-    "toyota grand highlander", "bike stand", "mist fan", "milk frother", 
-    "misting fan", "wooden playpen", "nutri bullet", "ninja",
-    "wireless power bank", "pixel 11 pro", "dash cam", "pixel 11",
-    "camping", "camping tent", "camping chair", "yeti cooler", 
-    "sleeping bag", "camping stove", "coleman", "igloo cooler"
+    "toyota grand highlander", "bike stand", "chicco",
+    "uppababy",
+    "stroller",
+    "car seat",
+    "thule",
+    "bike rack",
+    "nuna",
+    "ninja",
+    "dyson",
+    "wireless power bank",
+    "pixel 11 pro",
+    "dash cam",
+    "pixel 11",
+    "camping",
+    "camping tent",
+    "camping chair",
+    "yeti cooler",
+    "sleeping bag",
+    "camping stove",
+    "coleman",
+    "igloo cooler",
+    "greenworks battery"
 ]
 
 NEGATIVE_KEYWORDS = [
@@ -113,14 +130,58 @@ def parse_item_metadata(item, retail, current_bid):
 
 def fetch_and_parse(url):
     try:
-        api_url = url + "&_data=routes%2Fsearch" if "?" in url else url + "?_data=routes%2Fsearch"
+        # Nellis Auction now uses Remix Single Fetch (TurboStream) with .data endpoints
+        api_url = url.replace('/search?', '/search.data?') if '?' in url else url + '.data'
         req = urllib.request.Request(api_url, headers={
             'User-Agent': 'Mozilla/5.0',
             'Cookie': DALLAS_COOKIE
         })
         response = urllib.request.urlopen(req, timeout=15).read().decode('utf-8', errors='ignore')
         data = json.loads(response)
-        return data.get('products', [])
+        
+        def resolve(item):
+            if isinstance(item, int):
+                if item < 0: return None
+                return item
+            if isinstance(item, list):
+                if len(item) == 2 and item[0] == "D":
+                    return item[1]
+                return [resolve(x) for x in item]
+            if isinstance(item, dict):
+                out = {}
+                for k, v in item.items():
+                    if k.startswith("_"):
+                        key_idx = int(k[1:])
+                        key_str = data[key_idx] if 0 <= key_idx < len(data) else k
+                        out[key_str] = resolve(data[v]) if isinstance(v, int) and 0 <= v < len(data) else v
+                    else:
+                        out[k] = resolve(v)
+                return out
+            return item
+
+        root = resolve(data[0])
+        search_data = root.get('routes/search._index') or root.get('routes/search') or {}
+        if 'data' in search_data:
+            search_data = search_data['data']
+            
+        products_refs = search_data.get('products', [])
+        
+        products = []
+        for ref in products_refs:
+            if isinstance(ref, int) and 0 <= ref < len(data):
+                prod = resolve(data[ref])
+                if isinstance(prod, dict):
+                    # Resolve photos array
+                    if 'photos' in prod and isinstance(prod['photos'], list):
+                        resolved_photos = []
+                        for p in prod['photos']:
+                            if isinstance(p, int) and 0 <= p < len(data):
+                                resolved_photos.append(resolve(data[p]))
+                            elif isinstance(p, dict):
+                                resolved_photos.append(p)
+                        prod['photos'] = resolved_photos
+                    products.append(prod)
+        return products
     except Exception as e:
         print(f"Error fetching {url}: {e}")
     return []
@@ -284,9 +345,9 @@ def check_nellis_auction():
     if selected_baby_items:
         found_items.extend(selected_baby_items)
 
-    # 3. AI Discovery (6 PM only)
-    if datetime.now(timezone.utc).hour in [21, 22, 23, 0, 1] and GEMINI_API_KEY:
-        print("\nRunning AI Discovery for 6 PM mail...")
+    # 3. AI Discovery
+    if GEMINI_API_KEY:
+        print("\nRunning AI Discovery...")
         discovery_items = fetch_and_parse(DISCOVERY_URL)
         candidates = []
         for item in discovery_items:
@@ -452,72 +513,80 @@ def check_nellis_auction():
         
         found_items.sort(key=lambda x: x.get('sort_val', float('inf')))
         
-        items_by_city = {}
+        normal_items = []
+        ai_items = []
         for item in found_items:
-            city = item.get('city', 'Unknown Location')
-            if city not in items_by_city:
-                items_by_city[city] = []
-            items_by_city[city].append(item)
+            if item.get('category') == 'AI Discovery':
+                ai_items.append(item)
+            else:
+                normal_items.append(item)
+                
+        def generate_html_section(item_list):
+            out_html = ""
+            items_by_city = {}
+            for it in item_list:
+                city = it.get('city', 'Unknown Location')
+                if city not in items_by_city:
+                    items_by_city[city] = []
+                items_by_city[city].append(it)
+                
+            for city, items in items_by_city.items():
+                out_html += f"<h3>📍 {city}, TX</h3>"
+                
+                tier_80, tier_60, tier_other = [], [], []
+                for item in items:
+                    discount = item.get('discount_pct', 0)
+                    if discount >= 80: tier_80.append(item)
+                    elif discount >= 60: tier_60.append(item)
+                    else: tier_other.append(item)
+                        
+                for tier_name, tier_items in [("🔥 Over 80% OFF", tier_80), ("💰 Over 60% OFF", tier_60), ("📉 Other Deals", tier_other)]:
+                    if not tier_items: continue
+                    out_html += f"<h4 style='color: #e67e22; margin-top: 15px; margin-bottom: 5px; font-size: 15px;'>{tier_name}</h4>"
+                    out_html += "<table><tbody>"
+                    for item in tier_items:
+                        dmg_class = "tag-dmg-none" if str(item['damage']).lower() == "none" else "tag-dmg"
+                        img_url = item.get('image_url', 'https://via.placeholder.com/80')
+                        urgency_html = f'<span style="color: #e74c3c; font-weight: bold;">{item["time_left_str"]}</span> &nbsp;&bull;&nbsp; ' if item.get('is_urgent') else f'<span>{item.get("time_left_str", "")}</span> &nbsp;&bull;&nbsp; ' if item.get("time_left_str") else ""
+                        discount_html = f'<span style="background: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">🔥 {item["discount_pct"]}% OFF</span>' if item.get("discount_pct", 0) > 0 else ""
+                        
+                        out_html += f"""
+                            <tr>
+                              <td>
+                                <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                  <tr>
+                                    <td width="90" valign="top" style="padding-right: 12px; width: 90px;">
+                                      <img src="{img_url}" style="width: 80px; height: 80px; object-fit: contain; border-radius: 4px; display: block; border: 1px solid #ddd;" alt="item thumbnail" />
+                                    </td>
+                                    <td valign="top">
+                                      <div style="font-size: 15px; font-weight: bold; margin-bottom: 6px;">
+                                        <a href="{item['url']}" target="_blank">{item['title']}</a> {discount_html}
+                                      </div>
+                                      <div style="font-size: 13px; color: #555; margin-bottom: 8px; line-height: 1.4;">
+                                        {urgency_html}<strong>Retail:</strong> <span style="color: #27ae60;">${item['retail']}</span> &nbsp;&bull;&nbsp; 
+                                        <strong>Bid:</strong> <span style="color: #e74c3c;">${item['bid']}</span> <br/>
+                                        <strong>Search Term:</strong> {item['term']}
+                                      </div>
+                                      <div class="tag-group">
+                                        <span class="tag tag-cond">Cond: {item['condition']}</span>
+                                        <span class="tag tag-func">Func: {item['functional']}</span>
+                                        <span class="tag {dmg_class}">Dmg: {item['damage']}</span>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                </table>
+                              </td>
+                            </tr>
+                        """
+                    out_html += "</tbody></table>"
+            return out_html
+
+        if normal_items:
+            html_body += generate_html_section(normal_items)
             
-        for city, items in items_by_city.items():
-            html_body += f"""
-            <h3>📍 {city}, TX</h3>
-            """
-            
-            tier_80 = []
-            tier_60 = []
-            tier_other = []
-            
-            for item in items:
-                discount = item.get('discount_pct', 0)
-                if discount >= 80:
-                    tier_80.append(item)
-                elif discount >= 60:
-                    tier_60.append(item)
-                else:
-                    tier_other.append(item)
-                    
-            for tier_name, tier_items in [("🔥 Over 80% OFF", tier_80), ("💰 Over 60% OFF", tier_60), ("📉 Other Deals", tier_other)]:
-                if not tier_items: continue
-                html_body += f"<h4 style='color: #e67e22; margin-top: 15px; margin-bottom: 5px; font-size: 15px;'>{tier_name}</h4>"
-                html_body += "<table><tbody>"
-                for item in tier_items:
-                    dmg_class = "tag-dmg-none" if str(item['damage']).lower() == "none" else "tag-dmg"
-                    img_url = item.get('image_url', 'https://via.placeholder.com/80')
-                    
-                    urgency_html = f'<span style="color: #e74c3c; font-weight: bold;">{item["time_left_str"]}</span> &nbsp;&bull;&nbsp; ' if item.get('is_urgent') else f'<span>{item.get("time_left_str", "")}</span> &nbsp;&bull;&nbsp; ' if item.get("time_left_str") else ""
-                    discount_html = f'<span style="background: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">🔥 {item["discount_pct"]}% OFF</span>' if item.get("discount_pct", 0) > 0 else ""
-                    
-                    html_body += f"""
-                        <tr>
-                          <td>
-                            <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                              <tr>
-                                <td width="90" valign="top" style="padding-right: 12px; width: 90px;">
-                                  <img src="{img_url}" style="width: 80px; height: 80px; object-fit: contain; border-radius: 4px; display: block; border: 1px solid #ddd;" alt="item thumbnail" />
-                                </td>
-                                <td valign="top">
-                                  <div style="font-size: 15px; font-weight: bold; margin-bottom: 6px;">
-                                    <a href="{item['url']}" target="_blank">{item['title']}</a> {discount_html}
-                                  </div>
-                                  <div style="font-size: 13px; color: #555; margin-bottom: 8px; line-height: 1.4;">
-                                    {urgency_html}<strong>Retail:</strong> <span style="color: #27ae60;">${item['retail']}</span> &nbsp;&bull;&nbsp; 
-                                    <strong>Bid:</strong> <span style="color: #e74c3c;">${item['bid']}</span> <br/>
-                                    <strong>Search Term:</strong> {item['term']}
-                                  </div>
-                                  <div class="tag-group">
-                                    <span class="tag tag-cond">Cond: {item['condition']}</span>
-                                    <span class="tag tag-func">Func: {item['functional']}</span>
-                                    <span class="tag {dmg_class}">Dmg: {item['damage']}</span>
-                                  </div>
-                                </td>
-                              </tr>
-                            </table>
-                          </td>
-                        </tr>
-                    """
-                html_body += "</tbody></table>"
-            
+        if ai_items:
+            html_body += f"<h2 style='color: #8e44ad; border-bottom: 2px solid #9b59b6; margin-top: 40px; padding-bottom: 10px;'>🤖 AI Personal Shopper</h2>"
+            html_body += generate_html_section(ai_items)
         html_body += """
               </tbody>
             </table>
