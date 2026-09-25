@@ -41,7 +41,16 @@ SEARCH_TERMS = [
     "camping stove",
     "coleman",
     "igloo cooler",
-    "greenworks battery"
+    "greenworks battery",
+    "Thule Chariot Cross 2",
+    "Burley D'Lite X",
+    "Hamax Outback",
+    "Burley Encore X",
+    "Thule Coaster XT",
+    "Burley Bee",
+    "Allen Sports Deluxe 2-in-1",
+    "InStep Take 2",
+    "Retrospec Rover Plus"
 ]
 
 NEGATIVE_KEYWORDS = [
@@ -521,64 +530,91 @@ def check_nellis_auction():
             else:
                 normal_items.append(item)
                 
+        def get_item_category(term, title):
+            text = (term + " " + title).lower()
+            if any(k in text for k in ["bike", "thule", "kuat", "yakima", "shotgun", "retrospec", "burley", "hamax", "allen", "instep"]):
+                return "🚲 Bike Related"
+            if any(k in text for k in ["fit360", "revolve360", "emme 360", "one4life", "onefit", "car seat", "nuna", "gracco"]):
+                return "💺 Car Seat Related"
+            if any(k in text for k in ["chicco", "uppababy", "minu", "joolz", "bugaboo", "ergobaby", "stroller", "baby", "crib"]):
+                return "🍼 Baby Related"
+            if any(k in text for k in ["dash cam", "highlander", "pacifica", "car"]):
+                return "🚗 Car Related"
+            if any(k in text for k in ["pixel", "power bank", "phone"]):
+                return "📱 Phone & Electronics"
+            if any(k in text for k in ["camping", "yeti", "sleeping bag", "coleman", "igloo", "tent"]):
+                return "🏕️ Camping Related"
+            if any(k in text for k in ["ninja", "dyson", "eufy", "giraffe", "greenworks"]):
+                return "🏡 Home & Outdoor"
+            return "📦 Other Finds"
+
         def generate_html_section(item_list):
             out_html = ""
             items_by_city = {}
             for it in item_list:
                 city = it.get('city', 'Unknown Location')
                 if city not in items_by_city:
-                    items_by_city[city] = []
-                items_by_city[city].append(it)
+                    items_by_city[city] = {}
+                    
+                cat = get_item_category(it.get('term', ''), it.get('title', ''))
+                if cat not in items_by_city[city]:
+                    items_by_city[city][cat] = []
+                items_by_city[city][cat].append(it)
                 
-            for city, items in items_by_city.items():
+            for city, cat_dict in items_by_city.items():
                 out_html += f"<h3>📍 {city}, TX</h3>"
                 
-                tier_80, tier_60, tier_other = [], [], []
-                for item in items:
-                    discount = item.get('discount_pct', 0)
-                    if discount >= 80: tier_80.append(item)
-                    elif discount >= 60: tier_60.append(item)
-                    else: tier_other.append(item)
-                        
-                for tier_name, tier_items in [("🔥 Over 80% OFF", tier_80), ("💰 Over 60% OFF", tier_60), ("📉 Other Deals", tier_other)]:
-                    if not tier_items: continue
-                    out_html += f"<h4 style='color: #e67e22; margin-top: 15px; margin-bottom: 5px; font-size: 15px;'>{tier_name}</h4>"
-                    out_html += "<table><tbody>"
-                    for item in tier_items:
-                        dmg_class = "tag-dmg-none" if str(item['damage']).lower() == "none" else "tag-dmg"
-                        img_url = item.get('image_url', 'https://via.placeholder.com/80')
-                        urgency_html = f'<span style="color: #e74c3c; font-weight: bold;">{item["time_left_str"]}</span> &nbsp;&bull;&nbsp; ' if item.get('is_urgent') else f'<span>{item.get("time_left_str", "")}</span> &nbsp;&bull;&nbsp; ' if item.get("time_left_str") else ""
-                        discount_html = f'<span style="background: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">🔥 {item["discount_pct"]}% OFF</span>' if item.get("discount_pct", 0) > 0 else ""
-                        
-                        out_html += f"""
-                            <tr>
-                              <td>
-                                <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                                  <tr>
-                                    <td width="90" valign="top" style="padding-right: 12px; width: 90px;">
-                                      <img src="{img_url}" style="width: 80px; height: 80px; object-fit: contain; border-radius: 4px; display: block; border: 1px solid #ddd;" alt="item thumbnail" />
-                                    </td>
-                                    <td valign="top">
-                                      <div style="font-size: 15px; font-weight: bold; margin-bottom: 6px;">
-                                        <a href="{item['url']}" target="_blank">{item['title']}</a> {discount_html}
-                                      </div>
-                                      <div style="font-size: 13px; color: #555; margin-bottom: 8px; line-height: 1.4;">
-                                        {urgency_html}<strong>Retail:</strong> <span style="color: #27ae60;">${item['retail']}</span> &nbsp;&bull;&nbsp; 
-                                        <strong>Bid:</strong> <span style="color: #e74c3c;">${item['bid']}</span> <br/>
-                                        <strong>Search Term:</strong> {item['term']}
-                                      </div>
-                                      <div class="tag-group">
-                                        <span class="tag tag-cond">Cond: {item['condition']}</span>
-                                        <span class="tag tag-func">Func: {item['functional']}</span>
-                                        <span class="tag {dmg_class}">Dmg: {item['damage']}</span>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                </table>
-                              </td>
-                            </tr>
-                        """
-                    out_html += "</tbody></table>"
+                # Sort categories alphabetically
+                for cat in sorted(cat_dict.keys()):
+                    items = cat_dict[cat]
+                    out_html += f"<h4 style='color: #2980b9; margin-top: 15px; margin-bottom: 5px; font-size: 16px; border-bottom: 1px dashed #ccc; padding-bottom: 3px;'>{cat}</h4>"
+                    
+                    tier_80, tier_60, tier_other = [], [], []
+                    for item in items:
+                        discount = item.get('discount_pct', 0)
+                        if discount >= 80: tier_80.append(item)
+                        elif discount >= 60: tier_60.append(item)
+                        else: tier_other.append(item)
+                            
+                    for tier_name, tier_items in [("🔥 Over 80% OFF", tier_80), ("💰 Over 60% OFF", tier_60), ("📉 Other Deals", tier_other)]:
+                        if not tier_items: continue
+                        out_html += f"<h5 style='color: #e67e22; margin-top: 10px; margin-bottom: 5px; font-size: 14px;'>{tier_name}</h5>"
+                        out_html += "<table><tbody>"
+                        for item in tier_items:
+                            dmg_class = "tag-dmg-none" if str(item['damage']).lower() == "none" else "tag-dmg"
+                            img_url = item.get('image_url', 'https://via.placeholder.com/80')
+                            urgency_html = f'<span style="color: #e74c3c; font-weight: bold;">{item["time_left_str"]}</span> &nbsp;&bull;&nbsp; ' if item.get('is_urgent') else f'<span>{item.get("time_left_str", "")}</span> &nbsp;&bull;&nbsp; ' if item.get("time_left_str") else ""
+                            discount_html = f'<span style="background: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">🔥 {item["discount_pct"]}% OFF</span>' if item.get("discount_pct", 0) > 0 else ""
+                            
+                            out_html += f"""
+                                <tr>
+                                  <td>
+                                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                      <tr>
+                                        <td width="90" valign="top" style="padding-right: 12px; width: 90px;">
+                                          <img src="{img_url}" style="width: 80px; height: 80px; object-fit: contain; border-radius: 4px; display: block; border: 1px solid #ddd;" alt="item thumbnail" />
+                                        </td>
+                                        <td valign="top">
+                                          <div style="font-size: 15px; font-weight: bold; margin-bottom: 6px;">
+                                            <a href="{item['url']}" target="_blank">{item['title']}</a> {discount_html}
+                                          </div>
+                                          <div style="font-size: 13px; color: #555; margin-bottom: 8px; line-height: 1.4;">
+                                            {urgency_html}<strong>Retail:</strong> <span style="color: #27ae60;">${item['retail']}</span> &nbsp;&bull;&nbsp; 
+                                            <strong>Bid:</strong> <span style="color: #e74c3c;">${item['bid']}</span> <br/>
+                                            <strong>Search Term:</strong> {item['term']}
+                                          </div>
+                                          <div class="tag-group">
+                                            <span class="tag tag-cond">Cond: {item['condition']}</span>
+                                            <span class="tag tag-func">Func: {item['functional']}</span>
+                                            <span class="tag {dmg_class}">Dmg: {item['damage']}</span>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    </table>
+                                  </td>
+                                </tr>
+                            """
+                        out_html += "</tbody></table>"
             return out_html
 
         if normal_items:
