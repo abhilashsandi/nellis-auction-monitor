@@ -50,13 +50,23 @@ SEARCH_TERMS = [
     "Burley Bee",
     "Allen Sports Deluxe 2-in-1",
     "InStep Take 2",
-    "Retrospec Rover Plus"
+    "Retrospec Rover Plus",
+    "toy organizer",
+    "bed rail",
+    "halloween decoration outdoor",
+    "fire pit"
 ]
 
 NEGATIVE_KEYWORDS = [
     "toy", "turtles", "figure", "costume", "pacifier", "bottle", "nipple", "shirt",
     "pants", "clothes", "shoes", "diaper", "wipes", "action figure", "megazord"
 ]
+
+def contains_negative(title):
+    t = title.lower()
+    t = t.replace("toy organizer", "")
+    t = t.replace("toyota", "")
+    return any(neg.lower() in t for neg in NEGATIVE_KEYWORDS)
 
 GENERIC_BABY_URL = "https://nellisauction.com/search?query=&Taxonomy%20Level%201=Baby&sortBy=retail_price_desc"
 DISCOVERY_URL = "https://nellisauction.com/search?query=&sortBy=retail_price_desc"
@@ -222,7 +232,7 @@ def check_nellis_auction():
                 if not all(word in title.lower() for word in term_words):
                     continue
                     
-                if any(neg.lower() in title.lower() for neg in NEGATIVE_KEYWORDS):
+                if contains_negative(title):
                     continue
                     
                 grade = item.get('grade') or {}
@@ -303,7 +313,7 @@ def check_nellis_auction():
 
             title = item.get('title', 'Unknown Item')
             
-            if any(neg.lower() in title.lower() for neg in NEGATIVE_KEYWORDS):
+            if contains_negative(title):
                 continue
                 
             loc_city = loc.get('city', '')
@@ -368,7 +378,7 @@ def check_nellis_auction():
             if loc_state.upper() != TARGET_STATE: continue
             
             title = item.get('title', 'Unknown Item')
-            if any(neg.lower() in title.lower() for neg in NEGATIVE_KEYWORDS): continue
+            if contains_negative(title): continue
             
             retail = item.get('retailPrice', 0)
             current_bid = item.get('currentPrice', 0)
@@ -536,7 +546,7 @@ def check_nellis_auction():
                 return "🚲 Bike Related"
             if any(k in text for k in ["fit360", "revolve360", "emme 360", "one4life", "onefit", "car seat", "nuna", "gracco"]):
                 return "💺 Car Seat Related"
-            if any(k in text for k in ["chicco", "uppababy", "minu", "joolz", "bugaboo", "ergobaby", "stroller", "baby", "crib"]):
+            if any(k in text for k in ["chicco", "uppababy", "minu", "joolz", "bugaboo", "ergobaby", "stroller", "baby", "crib", "toy organizer", "bed rail"]):
                 return "🍼 Baby Related"
             if any(k in text for k in ["dash cam", "highlander", "pacifica", "car"]):
                 return "🚗 Car Related"
@@ -544,7 +554,7 @@ def check_nellis_auction():
                 return "📱 Phone & Electronics"
             if any(k in text for k in ["camping", "yeti", "sleeping bag", "coleman", "igloo", "tent"]):
                 return "🏕️ Camping Related"
-            if any(k in text for k in ["ninja", "dyson", "eufy", "giraffe", "greenworks"]):
+            if any(k in text for k in ["ninja", "dyson", "eufy", "giraffe", "greenworks", "halloween", "fire pit"]):
                 return "🏡 Home & Outdoor"
             return "📦 Other Finds"
 
