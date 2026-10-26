@@ -55,6 +55,7 @@ SEARCH_TERMS = [
     "71 bed rail",
     "halloween decoration outdoor",
     "fire pit",
+    "fire table",
     "carpet cleaner",
     "collapsible wagon",
     "brezza warmer"
@@ -71,6 +72,24 @@ def contains_negative(title):
     if "carpet" in t and "cleaner" in t:
         if re.search(r'\b(pet|portable)\b', t):
             return True
+
+    # Exclude fire pit / fire table accessories/parts/covers so only actual backyard fire pits are alerted
+    if "fire" in t and ("pit" in t or "table" in t):
+        if re.search(r'\b(kindle|tablet|tablets)\b', t):
+            return True
+        accessory_patterns = [
+            r'\bwheel kit\b', r'\bgas log\b', r'\bignitor\b', r'\bburn pot\b',
+            r'\bspark screen\b', r'\bglass wind guard\b', r'\bpoker\b', r'\btongs\b',
+            r'\bheat deflector\b', r'\bpit ring\b', r'\bring liner\b', r'\bpit liner\b'
+        ]
+        if any(re.search(pat, t) for pat in accessory_patterns):
+            return True
+        if re.search(r'\b(cover|mat)\b', t) and not re.search(r'\bwith (cover|mat)\b', t):
+            if re.search(r'\bfire pit (cover|mat)\b', t) or re.search(r'\b(cover|mat) (for|for the)\b', t) or t.startswith(('round fire pit cover', 'fire pit cover', 'waterproof fire pit cover')):
+                return True
+            if not any(k in t for k in ['table', 'burner', 'btu', 'stove', 'wood burning', 'propane', 'gas']):
+                return True
+
     t = t.replace("toy organizer", "")
     t = t.replace("toyota", "")
     # Allow bottle warmer without being blocked by 'bottle' negative keyword
@@ -569,7 +588,7 @@ def check_nellis_auction():
                 return "📱 Phone & Electronics"
             if any(k in text for k in ["camping", "yeti", "sleeping bag", "coleman", "igloo", "tent", "wagon"]):
                 return "🏕️ Camping Related"
-            if any(k in text for k in ["ninja", "dyson", "eufy", "giraffe", "greenworks", "halloween", "fire pit", "carpet cleaner", "cleaner"]):
+            if any(k in text for k in ["ninja", "dyson", "eufy", "giraffe", "greenworks", "halloween", "fire pit", "fire table", "carpet cleaner", "cleaner"]):
                 return "🏡 Home & Outdoor"
             return "📦 Other Finds"
 
