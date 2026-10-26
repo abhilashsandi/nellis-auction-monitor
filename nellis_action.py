@@ -179,7 +179,12 @@ def fetch_and_parse(url):
             return item
 
         root = resolve(data[0])
-        search_data = root.get('routes/search') or {}
+        search_data = root.get('routes/search._index') or root.get('routes/search') or {}
+        if not search_data:
+            for k in root:
+                if k.startswith('routes/search'):
+                    search_data = root[k]
+                    break
         if 'data' in search_data:
             search_data = search_data['data']
             
