@@ -52,9 +52,12 @@ SEARCH_TERMS = [
     "InStep Take 2",
     "Retrospec Rover Plus",
     "toy organizer",
-    "bed rail",
+    "71 bed rail",
     "halloween decoration outdoor",
-    "fire pit"
+    "fire pit",
+    "carpet cleaner",
+    "collapsible wagon",
+    "brezza warmer"
 ]
 
 NEGATIVE_KEYWORDS = [
@@ -64,8 +67,15 @@ NEGATIVE_KEYWORDS = [
 
 def contains_negative(title):
     t = title.lower()
+    # Exclude pet or portable carpet cleaners using word boundary check so 'carpet' doesn't match 'pet'
+    if "carpet" in t and "cleaner" in t:
+        if re.search(r'\b(pet|portable)\b', t):
+            return True
     t = t.replace("toy organizer", "")
     t = t.replace("toyota", "")
+    # Allow bottle warmer without being blocked by 'bottle' negative keyword
+    if "warmer" in t:
+        t = t.replace("bottle", "")
     return any(neg.lower() in t for neg in NEGATIVE_KEYWORDS)
 
 GENERIC_BABY_URL = "https://nellisauction.com/search?query=&Taxonomy%20Level%201=Baby&sortBy=retail_price_desc"
@@ -551,15 +561,15 @@ def check_nellis_auction():
                 return "🚲 Bike Related"
             if any(k in text for k in ["fit360", "revolve360", "emme 360", "one4life", "onefit", "car seat", "nuna", "gracco"]):
                 return "💺 Car Seat Related"
-            if any(k in text for k in ["chicco", "uppababy", "minu", "joolz", "bugaboo", "ergobaby", "stroller", "baby", "crib", "toy organizer", "bed rail"]):
+            if any(k in text for k in ["chicco", "uppababy", "minu", "joolz", "bugaboo", "ergobaby", "stroller", "baby", "crib", "toy organizer", "bed rail", "brezza", "warmer"]):
                 return "🍼 Baby Related"
             if any(k in text for k in ["dash cam", "highlander", "pacifica", "car"]):
                 return "🚗 Car Related"
             if any(k in text for k in ["pixel", "power bank", "phone"]):
                 return "📱 Phone & Electronics"
-            if any(k in text for k in ["camping", "yeti", "sleeping bag", "coleman", "igloo", "tent"]):
+            if any(k in text for k in ["camping", "yeti", "sleeping bag", "coleman", "igloo", "tent", "wagon"]):
                 return "🏕️ Camping Related"
-            if any(k in text for k in ["ninja", "dyson", "eufy", "giraffe", "greenworks", "halloween", "fire pit"]):
+            if any(k in text for k in ["ninja", "dyson", "eufy", "giraffe", "greenworks", "halloween", "fire pit", "carpet cleaner", "cleaner"]):
                 return "🏡 Home & Outdoor"
             return "📦 Other Finds"
 
