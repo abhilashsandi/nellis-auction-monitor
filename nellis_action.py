@@ -53,7 +53,11 @@ SEARCH_TERMS = [
     "Retrospec Rover Plus",
     "toy organizer",
     "71 bed rail",
-    "halloween decoration outdoor",
+    "christmas",
+    "new year",
+    "power strip",
+    "cable management box",
+    "outlet cover box",
     "fire pit",
     "fire table",
     "carpet cleaner",
@@ -580,15 +584,17 @@ def check_nellis_auction():
                 return "🚲 Bike Related"
             if any(k in text for k in ["fit360", "revolve360", "emme 360", "one4life", "onefit", "car seat", "nuna", "gracco"]):
                 return "💺 Car Seat Related"
-            if any(k in text for k in ["chicco", "uppababy", "minu", "joolz", "bugaboo", "ergobaby", "stroller", "baby", "crib", "toy organizer", "bed rail", "brezza", "warmer"]):
+            if any(k in text for k in ["chicco", "uppababy", "minu", "joolz", "bugaboo", "ergobaby", "stroller", "baby", "crib", "toy organizer", "bed rail", "brezza", "warmer", "toddler", "child proof"]):
                 return "🍼 Baby Related"
             if any(k in text for k in ["dash cam", "highlander", "pacifica", "car"]):
                 return "🚗 Car Related"
-            if any(k in text for k in ["pixel", "power bank", "phone"]):
+            if any(k in text for k in ["pixel", "power bank", "phone", "power strip", "cable management"]):
                 return "📱 Phone & Electronics"
             if any(k in text for k in ["camping", "yeti", "sleeping bag", "coleman", "igloo", "tent", "wagon"]):
                 return "🏕️ Camping Related"
-            if any(k in text for k in ["ninja", "dyson", "eufy", "giraffe", "greenworks", "halloween", "fire pit", "fire table", "carpet cleaner", "cleaner"]):
+            if any(k in text for k in ["christmas", "new year"]):
+                return "🎄 Holiday & Seasonal"
+            if any(k in text for k in ["ninja", "dyson", "eufy", "giraffe", "greenworks", "fire pit", "fire table", "carpet cleaner", "cleaner", "outlet cover", "outlet box"]):
                 return "🏡 Home & Outdoor"
             return "📦 Other Finds"
 
