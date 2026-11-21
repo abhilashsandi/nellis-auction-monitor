@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nellis Auction Monitor</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Firebase v9 compat (CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="login-screen" class="screen hidden">
+  <div class="login-card">
+    <div class="logo">🔍</div>
+    <h1>Nellis Auction Monitor</h1>
+    <p class="subtitle">Track deals on Nellis Auction — get email alerts when your searches show up.</p>
+    <button id="login-btn" class="btn btn-github">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.387.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.09-.745.083-.73.083-.73 1.205.085 1.84 1.237 1.84 1.237 1.07 1.834 2.807 1.304 3.492.997.108-.775.418-1.305.762-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23A11.51 11.51 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.29-1.552 3.297-1.23 3.297-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.807 5.625-5.48 5.92.43.372.823 1.102.823 2.222 0 1.606-.015 2.898-.015 3.293 0 .322.216.694.825.576C20.565 21.797 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      Sign in with GitHub
+    </button>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="app-screen" class="screen hidden">
+  <header>
+    <div class="header-left">
+      <span class="logo-sm">🔍</span>
+      <span class="app-title">Nellis Monitor</span>
+    </div>
+    <div class="header-right">
+      <span id="user-name" class="user-name"></span>
+      <img id="user-avatar" class="avatar" src="" alt="" />
+      <button id="logout-btn" class="btn btn-sm btn-outline">Sign out</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Status bar -->
+    <div id="status-bar" class="status-bar hidden">
+      <span id="status-msg"></span>
+    </div>
+
+    <div class="layout">
+      <!-- LEFT: Search Terms -->
+      <section class="card terms-card">
+        <div class="card-header">
+          <h2>🔎 My Search Terms</h2>
+          <span id="terms-count" class="badge">0</span>
+        </div>
+
+        <div class="add-term-row">
+          <input id="new-term-input" type="text" placeholder="e.g. Thule bike rack" maxlength="100" />
+          <button id="add-term-btn" class="btn btn-primary">Add</button>
+        </div>
+
+        <ul id="terms-list" class="terms-list">
+          <!-- populated by JS -->
+        </ul>
+
+        <div id="terms-empty" class="empty-state hidden">
+          <p>No search terms yet. Add one above!</p>
+        </div>
+      </section>
+
+      <!-- RIGHT: Run / Info -->
+      <section class="card run-card">
+        <div class="card-header">
+          <h2>⚡ Run Scraper</h2>
+        </div>
+        <p class="run-desc">
+          Trigger the GitHub Action scraper right now — it will search Nellis Auction for all your terms and email you any new matches.
+        </p>
+
+        <div class="pat-row">
+          <label for="pat-input">GitHub PAT <span class="hint">(needs <code>repo</code> scope)</span></label>
+          <div class="pat-input-row">
+            <input id="pat-input" type="password" placeholder="ghp_..." autocomplete="off" />
+            <button id="pat-toggle" class="btn btn-sm btn-outline" type="button">Show</button>
+          </div>
+          <span class="pat-hint">Stored locally in your browser. Never sent to any server.</span>
+        </div>
+
+        <button id="run-btn" class="btn btn-success btn-run">
+          ▶ Run Now
+        </button>
+
+        <div id="run-status" class="run-status hidden"></div>
+
+        <div class="schedule-info">
+          <h3>⏰ Scheduled Runs</h3>
+          <ul>
+            <li>5:55 PM CST daily</li>
+            <li>9:55 PM CST daily</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- ===== LOADING SCREEN ===== -->
+<div id="loading-screen" class="screen">
+  <div class="spinner"></div>
+</div>
+
+<script src="firebase-config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
