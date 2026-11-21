@@ -61,6 +61,10 @@ SEARCH_TERMS = [
     "power strip",
     "cable management box",
     "outlet cover box",
+    "wifi router box",
+    "wifi router cabinet",
+    "wifi router storage",
+    "router storage box",
     "fire pit",
     "fire table",
     "carpet cleaner",
@@ -591,7 +595,7 @@ def check_nellis_auction():
                 return "🍼 Baby Related"
             if any(k in text for k in ["dash cam", "highlander", "pacifica", "car"]):
                 return "🚗 Car Related"
-            if any(k in text for k in ["pixel", "power bank", "phone", "power strip", "cable management"]):
+            if any(k in text for k in ["pixel", "power bank", "phone", "power strip", "cable management", "router"]):
                 return "📱 Phone & Electronics"
             if any(k in text for k in ["camping", "yeti", "sleeping bag", "coleman", "igloo", "tent", "wagon"]):
                 return "🏕️ Camping Related"
